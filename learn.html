@@ -8,238 +8,194 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Tone.js for sound effects -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <style>
-        /* Global box-sizing for consistent layout behavior */
-        html {
-            box-sizing: border-box;
-        }
-        *, *::before, *::after {
-            box-sizing: inherit;
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase (provided by Canvas environment)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        // Initialize Firebase
+        let app;
+        let db;
+        let auth;
+        let userId; // Will hold the current user's ID
+        let isAuthReady = false; // Flag to indicate if auth state has been determined
+
+        // Store references to global functions for use in inline event handlers
+        window.startCourse = startCourse;
+        window.startCurrentLesson = startCurrentLesson;
+        window.checkAnswer = checkAnswer;
+        window.nextQuestion = nextQuestion;
+        window.restartCourse = restartCourse;
+        window.startSpeaking = startSpeaking;
+        window.signUpWithEmail = signUpWithEmail; // New function for email sign-up
+        window.signInWithEmail = signInWithEmail; // New function for email sign-in
+        window.signOutUser = signOutUser;
+
+        // Function to display authentication errors
+        function displayAuthError(message) {
+            const authErrorMessage = document.getElementById('auth-error-message');
+            if (authErrorMessage) {
+                authErrorMessage.textContent = message;
+                authErrorMessage.classList.remove('hidden');
+                setTimeout(() => {
+                    authErrorMessage.classList.add('hidden');
+                    authErrorMessage.textContent = '';
+                }, 5000); // Hide after 5 seconds
+            }
         }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f4f8; /* Light blue-grey background */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 1rem; /* Keeps a general margin around the main container */
-            overflow-x: hidden; /* Prevents horizontal scrolling on small screens */
-        }
-        .container-wrapper {
-            /* This div acts as the primary container, centered and responsive */
-            background-color: #ffffff;
-            border-radius: 1.5rem; /* More rounded corners */
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            max-width: 900px; /* Increased max-width */
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-        /* Tailwind's padding classes will be applied directly to #app-container */
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem; /* Rounded button corners */
-            font-weight: 600;
-            transition: all 0.2s ease-in-out;
-            text-align: center;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .btn-primary {
-            background-color: #4CAF50; /* Duolingo green */
-            color: #ffffff;
-        }
-        .btn-primary:hover {
-            background-color: #45a049;
-            transform: translateY(-2px);
-        }
-        .btn-secondary {
-            background-color: #f9f9f9;
-            color: #333;
-            border: 1px solid #ddd;
-        }
-        .btn-secondary:hover {
-            background-color: #f0f0f0;
-            transform: translateY(-2px);
-        }
-        .choice-btn {
-            width: 100%;
-            display: flex;
-            align-items: center; /* Align number and text vertically */
-            padding: 1rem;
-            border-radius: 0.75rem;
-            border: 2px solid #e0e0e0;
-            background-color: #fdfdfd;
-            font-size: 1.125rem;
-            font-weight: 500;
-            transition: all 0.2s ease-in-out;
-            cursor: pointer;
-        }
-        .choice-btn .choice-number {
-            margin-right: 0.75rem; /* Space between number and text */
-            font-weight: 700;
-            color: #888;
-            min-width: 1.5rem; /* Ensure consistent spacing for numbers */
-            text-align: center;
-        }
-        .choice-btn:hover {
-            background-color: #f0f0f0;
-            border-color: #c0c0c0;
-        }
-        .choice-btn.selected {
-            background-color: #e6f7ff; /* Light blue for selected */
-            border-color: #007bff; /* Blue border for selected */
-        }
-        .choice-btn.correct {
-            background-color: #d4edda; /* Light green for correct */
-            border-color: #28a745; /* Green border for correct */
-            color: #155724;
-        }
-        .choice-btn.incorrect {
-            background-color: #f8d7da; /* Light red for incorrect */
-            border-color: #dc3545; /* Red border for incorrect */
-            color: #721c24;
-        }
-        input[type="text"] {
-            border-radius: 0.75rem;
-            padding: 0.75rem 1rem;
-            border: 2px solid #e0e0e0;
-            width: 100%;
-            font-size: 1.125rem;
-        }
-        .progress-bar {
-            height: 0.75rem;
-            background-color: #e0e0e0;
-            border-radius: 0.375rem;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background-color: #4CAF50;
-            border-radius: 0.375rem;
-            transition: width 0.3s ease-in-out;
-        }
-        .vocabulary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #eee;
-            font-size: 1.125rem;
-        }
-        .vocabulary-item:last-child {
-            border-bottom: none;
-        }
-        .vocabulary-word {
-            font-weight: 600;
-            color: #333;
-        }
-        .vocabulary-translation {
-            color: #555;
-        }
-        #speech-display {
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-            border-radius: 0.75rem;
-            padding: 1rem;
-            min-height: 50px;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.125rem;
-            color: #333;
-            margin-bottom: 1rem;
-            word-break: break-word; /* Ensure long words break */
-        }
-        #speaking-controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .skip-btn {
-            background-color: #f0f0f0;
-            color: #555;
-            border: 1px solid #ddd;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            transition: all 0.2s ease-in-out;
-            cursor: pointer;
-            margin-top: 1rem;
-        }
-        .skip-btn:hover {
-            background-color: #e0e0e0;
-        }
-    </style>
-</head>
-<body class="selection:bg-green-200 selection:text-green-800">
-    <!-- Main application container with responsive padding -->
-    <div id="app-container" class="container-wrapper p-4 sm:p-8">
+        // Ensure Firebase app is only initialized once
+        if (Object.keys(firebaseConfig).length > 0) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
 
-        <!-- Progress Info and Bar -->
-        <div class="flex items-center mb-4">
-            <div id="lesson-progress-text" class="text-gray-700 font-medium mr-4 flex-shrink-0"></div>
-            <div class="progress-bar flex-grow">
-                <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
-            </div>
-        </div>
+            // Listen for authentication state changes
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    const userIdDisplay = document.getElementById('user-id-display');
+                    const authStatus = document.getElementById('auth-status');
+                    const authControls = document.getElementById('auth-controls');
+                    const signoutBtn = document.getElementById('signout-btn');
 
-        <!-- Home Screen -->
-        <div id="home-screen" class="text-center">
-            <h1 class="text-4xl font-bold text-gray-800 mb-6">Learn Italian</h1>
-            <p class="text-lg text-gray-600 mb-8">Your journey to speaking Italian starts here!</p>
-            <button id="start-course-btn" class="btn btn-primary text-xl px-8 py-4">Start Learning</button>
-        </div>
+                    if (userIdDisplay) userIdDisplay.textContent = `User ID: ${userId}`;
+                    if (authStatus) authStatus.textContent = `Signed in as: ${user.isAnonymous ? 'Anonymous' : user.email || 'User'}`; // Display email for non-anonymous
+                    if (authControls) authControls.classList.add('hidden'); // Hide email input and sign-in/up buttons
+                    if (signoutBtn) signoutBtn.classList.remove('hidden');
 
-        <!-- Lesson Screen -->
-        <div id="lesson-screen" class="hidden">
-            <h2 id="lesson-title" class="text-3xl font-semibold text-gray-800 mb-4"></h2>
-            <p id="lesson-description" class="text-lg text-gray-700 mb-8"></p>
-            <div id="vocabulary-list" class="bg-gray-50 p-4 rounded-lg mb-6 shadow-inner">
-                <h3 class="text-xl font-semibold text-gray-700 mb-4">New Vocabulary:</h3>
-                <!-- Vocabulary items will be rendered here -->
-            </div>
-            <button id="continue-lesson-btn" class="btn btn-primary w-full">Start Exercises</button>
-        </div>
 
-        <!-- Question Screen -->
-        <div id="question-screen" class="hidden">
-            <p id="question-text" class="text-2xl text-gray-800 font-medium mb-6"></p>
-            <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <!-- Choices will be rendered here -->
-            </div>
-            <input type="text" id="answer-input" placeholder="Type your answer here..." class="hidden mb-6">
+                    // Attempt to load or migrate progress
+                    await loadProgress();
+                    // If no progress loaded from Firestore, check localStorage for old progress
+                    if (Object.keys(userProgress).length === 0 && localStorage.getItem('italianCourseProgress')) {
+                        console.log("Migrating local storage progress to Firestore...");
+                        const localProgress = JSON.parse(localStorage.getItem('italianCourseProgress'));
+                        const localLessonIndex = parseInt(localStorage.getItem('italianCurrentLessonIndex'), 10);
+                        const localQuestionIndex = parseInt(localStorage.getItem('italianCurrentQuestionIndex'), 10);
 
-            <!-- Speaking Exercise Controls -->
-            <div id="speaking-exercise-container" class="hidden">
-                <div id="speech-display" class="w-full text-gray-500">Press 'Start Speaking' to begin...</div>
-                <div id="speaking-controls">
-                    <button id="start-speaking-btn" class="btn btn-primary">Start Speaking 🎤</button>
-                    <p id="speech-status" class="text-sm text-gray-600 hidden">Listening...</p>
-                    <p id="no-speech-support-message" class="text-sm text-red-500 hidden">Speech recognition not supported in this browser.</p>
-                </div>
-                <button id="skip-speaking-btn" class="skip-btn hidden">Skip Exercise</button>
-            </div>
+                        userProgress = localProgress;
+                        currentLessonIndex = localLessonIndex;
+                        currentQuestionIndex = localQuestionIndex;
+                        await saveProgress();
+                        localStorage.removeItem('italianCourseProgress');
+                        localStorage.removeItem('italianCurrentLessonIndex');
+                        localStorage.removeItem('italianCurrentQuestionIndex');
+                        console.log("Local storage progress migrated to Firestore.");
+                    }
+                } else {
+                    // User is signed out or no user is signed in.
+                    userId = crypto.randomUUID();
+                    const userIdDisplay = document.getElementById('user-id-display');
+                    const authStatus = document.getElementById('auth-status');
+                    const authControls = document.getElementById('auth-controls');
+                    const signoutBtn = document.getElementById('signout-btn');
 
-            <div id="feedback-message" class="text-center text-lg font-semibold mt-4 hidden"></div>
-            <button id="check-answer-btn" class="btn btn-primary w-full mt-4">Check Answer</button>
-            <button id="next-question-btn" class="btn btn-secondary w-full mt-4 hidden">Next</button>
-        </div>
+                    if (userIdDisplay) userIdDisplay.textContent = `User ID: Not signed in`;
+                    if (authStatus) authStatus.textContent = 'Signed out';
+                    if (authControls) authControls.classList.remove('hidden'); // Show email input and sign-in/up buttons
+                    if (signoutBtn) signoutBtn.classList.add('hidden');
+                    console.log("User is signed out or anonymous session expired.");
 
-        <!-- Course Complete Screen -->
-        <div id="course-complete-screen" class="hidden text-center">
-            <h2 class="text-4xl font-bold text-green-600 mb-6">Congratulations!</h2>
-            <p class="text-lg text-gray-700 mb-8">You have completed all the lessons in this course.</p>
-            <button id="restart-course-btn" class="btn btn-primary text-xl px-8 py-4">Restart Course</button>
-        </div>
-    </div>
+                    if (!isAuthReady) {
+                        await signInAnonymously(auth).catch((error) => {
+                            console.error("Anonymous sign-in error:", error);
+                            displayAuthError(error.message);
+                        });
+                    }
+                    userProgress = {};
+                    currentLessonIndex = 0;
+                    currentQuestionIndex = 0;
+                }
+                isAuthReady = true;
+                if (currentLessonIndex === 0 && currentQuestionIndex === 0 && Object.keys(userProgress).length === 0) {
+                    showScreen(homeScreen);
+                } else if (currentLessonIndex >= courses.length) {
+                    showScreen(courseCompleteScreen);
+                } else {
+                    showScreen(lessonScreen);
+                    renderLesson();
+                }
+            });
 
-    <script>
-        // Define the course content
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            if (initialAuthToken) {
+                try {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } catch (error) {
+                    console.error("Custom token sign-in error:", error);
+                    displayAuthError(error.message);
+                }
+            } else if (!auth.currentUser) {
+                await signInAnonymously(auth).catch((error) => {
+                    console.error("Anonymous sign-in on initial load error:", error);
+                    displayAuthError(error.message);
+                });
+            }
+        } else {
+            console.warn("Firebase config not found. Running in local-only mode. Progress will NOT be saved persistently.");
+            isAuthReady = true;
+            loadProgress();
+            if (currentLessonIndex === 0 && currentQuestionIndex === 0 && Object.keys(userProgress).length === 0) {
+                showScreen(homeScreen);
+            } else if (currentLessonIndex >= courses.length) {
+                showScreen(courseCompleteScreen);
+            } else {
+                showScreen(lessonScreen);
+                renderLesson();
+            }
+        }
+
+        // Email/Password Authentication Functions
+        async function signUpWithEmail() {
+            const email = document.getElementById('email-input').value;
+            const password = document.getElementById('password-input').value;
+            if (!email || !password) {
+                displayAuthError("Please enter both email and password.");
+                return;
+            }
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                console.log("User signed up with email!");
+            } catch (error) {
+                console.error("Email sign-up error:", error);
+                displayAuthError(error.message);
+            }
+        }
+
+        async function signInWithEmail() {
+            const email = document.getElementById('email-input').value;
+            const password = document.getElementById('password-input').value;
+            if (!email || !password) {
+                displayAuthError("Please enter both email and password.");
+                return;
+            }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                console.log("User signed in with email!");
+            } catch (error) {
+                console.error("Email sign-in error:", error);
+                displayAuthError(error.message);
+            }
+        }
+
+        async function signOutUser() {
+            try {
+                await signOut(auth);
+                console.log("User signed out.");
+            } catch (error) {
+                console.error("Sign out error:", error);
+                displayAuthError(error.message);
+            }
+        }
+
+        // The rest of your existing JavaScript code (courses array, game logic functions)
+
         const courses = [
             {
                 title: "Lesson 1: Basic Greetings 👋",
@@ -269,7 +225,7 @@
                 ],
                 questions: [
                     { type: "multiple-choice", text: "What is 'One' in Italian? ☝️", choices: ["Due", "Uno", "Tre", "Quattro"], correctAnswer: "Uno" },
-                    { type: "speaking", text: "Say 'Two' in Italian: ✌️", correctAnswer: "Due" },
+                    { type: "speaking", text: "Say 'Two' in Italian:✌️", correctAnswer: "Due" },
                     { type: "translation-input", text: "Translate 'Three' into Italian:", correctAnswer: "Tre" },
                     { type: "translation-input", text: "Translate 'Four' into Italian:", correctAnswer: "Quattro" },
                     { type: "multiple-choice", text: "What is 'Cinque'? 🖐️", choices: ["Three", "Four", "Five", "Six"], correctAnswer: "Five" }
@@ -294,14 +250,12 @@
             }
         ];
 
-        // Global state variables
         let currentLessonIndex = 0;
         let currentQuestionIndex = 0;
-        let userProgress = {}; // Stores completed lessons: { lessonIndex: true }
-        let selectedChoice = null; // For multiple-choice questions
-        let currentSpeechRecognition = null; // To hold the SpeechRecognition object
+        let userProgress = {};
+        let selectedChoice = null;
+        let currentSpeechRecognition = null;
 
-        // Get DOM elements
         const homeScreen = document.getElementById('home-screen');
         const lessonScreen = document.getElementById('lesson-screen');
         const questionScreen = document.getElementById('question-screen');
@@ -323,77 +277,95 @@
         const progressFill = document.getElementById('progress-fill');
         const lessonProgressText = document.getElementById('lesson-progress-text');
 
-        // Speaking exercise elements
         const speakingExerciseContainer = document.getElementById('speaking-exercise-container');
         const speechDisplay = document.getElementById('speech-display');
         const startSpeakingBtn = document.getElementById('start-speaking-btn');
         const speechStatus = document.getElementById('speech-status');
         const noSpeechSupportMessage = document.getElementById('no-speech-support-message');
-        const skipSpeakingBtn = document.getElementById('skip-speaking-btn'); // New skip button for speaking
+        const skipSpeakingBtn = document.getElementById('skip-speaking-btn');
 
-        // Fuzzy matching threshold (percentage of matching words)
-        const FUZZY_MATCH_THRESHOLD = 70; // 70% of words must match
+        const FUZZY_MATCH_THRESHOLD = 70;
 
-        // Positive feedback messages
         const positiveFeedbackMessages = [
-            "Fantastic!",
-            "You got this!",
-            "Excellent!",
-            "Keep up the great work!",
-            "Perfect!"
+            "Fantastic!", "You got this!", "Excellent!", "Keep up the great work!", "Perfect!"
         ];
 
-        // Initialize Tone.js synthesizers for sound effects
         const correctSynth = new Tone.Synth().toDestination();
         const incorrectSynth = new Tone.Synth().toDestination();
 
-        /**
-         * Plays a short, pleasant sound for a correct answer.
-         */
         function playCorrectSound() {
-            correctSynth.triggerAttackRelease("C5", "8n"); // Middle C
+            correctSynth.triggerAttackRelease("C5", "8n");
         }
 
-        /**
-         * Plays a short, dissonant sound for an incorrect answer.
-         */
         function playIncorrectSound() {
-            incorrectSynth.triggerAttackRelease("C3", "16n"); // Low C
+            incorrectSynth.triggerAttackRelease("C3", "16n");
         }
 
-        /**
-         * Saves the current user progress to local storage.
-         */
-        function saveProgress() {
-            localStorage.setItem('italianCourseProgress', JSON.stringify(userProgress));
-            localStorage.setItem('italianCurrentLessonIndex', currentLessonIndex);
-            localStorage.setItem('italianCurrentQuestionIndex', currentQuestionIndex);
+        async function saveProgress() {
+            if (!db || !userId || !auth.currentUser) {
+                console.warn("Firestore or user not ready. Progress not saved to cloud.");
+                localStorage.setItem('italianCourseProgress', JSON.stringify(userProgress));
+                localStorage.setItem('italianCurrentLessonIndex', currentLessonIndex);
+                localStorage.setItem('italianCurrentQuestionIndex', currentQuestionIndex);
+                return;
+            }
+
+            const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/italianCourseProgress/data`);
+            const dataToSave = {
+                currentLessonIndex: currentLessonIndex,
+                currentQuestionIndex: currentQuestionIndex,
+                userProgress: userProgress,
+                lastUpdated: new Date().toISOString()
+            };
+
+            try {
+                await setDoc(userDocRef, dataToSave, { merge: true });
+                console.log("Progress saved to Firestore.");
+            } catch (e) {
+                console.error("Error saving document: ", e);
+                displayAuthError("Error saving progress: " + e.message);
+            }
         }
 
-        /**
-         * Loads user progress from local storage.
-         */
-        function loadProgress() {
-            const savedProgress = localStorage.getItem('italianCourseProgress');
-            const savedLessonIndex = localStorage.getItem('italianCurrentLessonIndex');
-            const savedQuestionIndex = localStorage.getItem('italianCurrentQuestionIndex');
+        async function loadProgress() {
+            if (!db || !userId || !auth.currentUser) {
+                console.warn("Firestore or user not ready. Loading progress from localStorage.");
+                const savedProgress = localStorage.getItem('italianCourseProgress');
+                const savedLessonIndex = localStorage.getItem('italianCurrentLessonIndex');
+                const savedQuestionIndex = localStorage.getItem('italianCurrentQuestionIndex');
 
-            if (savedProgress) {
-                userProgress = JSON.parse(savedProgress);
-            }
-            if (savedLessonIndex) {
-                currentLessonIndex = parseInt(savedLessonIndex, 10);
-            }
-            if (savedQuestionIndex) {
-                currentQuestionIndex = parseInt(savedQuestionIndex, 10);
+                if (savedProgress) {
+                    userProgress = JSON.parse(savedProgress);
+                }
+                if (savedLessonIndex) {
+                    currentLessonIndex = parseInt(savedLessonIndex, 10);
+                }
+                if (savedQuestionIndex) {
+                    currentQuestionIndex = parseInt(savedQuestionIndex, 10);
+                }
+                updateProgressBar();
+                return;
             }
 
+            const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/italianCourseProgress/data`);
+            try {
+                const docSnap = await getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    currentLessonIndex = data.currentLessonIndex || 0;
+                    currentQuestionIndex = data.currentQuestionIndex || 0;
+                    userProgress = data.userProgress || {};
+                    console.log("Progress loaded from Firestore.");
+                } else {
+                    console.log("No progress found in Firestore for this user.");
+                }
+            } catch (e) {
+                console.error("Error loading document: ", e);
+                displayAuthError("Error loading progress: " + e.message);
+            }
             updateProgressBar();
         }
 
-        /**
-         * Updates the visual progress bar and the text indicating lesson/question progress.
-         */
         function updateProgressBar() {
             const totalLessons = courses.length;
             const completedLessons = Object.keys(userProgress).length;
@@ -408,7 +380,6 @@
             }
             progressFill.style.width = `${progressPercentage}%`;
 
-            // Update textual lesson/question progress
             if (currentLessonIndex < courses.length) {
                 const currentLesson = courses[currentLessonIndex];
                 const totalQuestionsInLesson = currentLesson.questions.length;
@@ -418,24 +389,20 @@
             }
         }
 
-        /**
-         * Shows the specified screen and hides all other main screens.
-         * @param {HTMLElement} screenToShow - The DOM element of the screen to display.
-         */
         function showScreen(screenToShow) {
             homeScreen.classList.add('hidden');
             lessonScreen.classList.add('hidden');
             questionScreen.classList.add('hidden');
             courseCompleteScreen.classList.add('hidden');
             screenToShow.classList.remove('hidden');
-            updateProgressBar(); // Ensure progress bar is updated when screen changes
+            updateProgressBar();
         }
 
-        /**
-         * Initiates the course, loading progress and displaying the appropriate screen.
-         */
-        function startCourse() {
-            loadProgress();
+        async function startCourse() {
+            if (!isAuthReady) {
+                console.log("Authentication not ready. Waiting to start course.");
+                return;
+            }
             if (currentLessonIndex >= courses.length) {
                 showScreen(courseCompleteScreen);
             } else {
@@ -444,16 +411,12 @@
             }
         }
 
-        /**
-         * Renders the current lesson details and vocabulary on the lesson screen.
-         */
         function renderLesson() {
             const lesson = courses[currentLessonIndex];
             lessonTitle.textContent = lesson.title;
             lessonDescription.textContent = lesson.description;
             continueLessonBtn.textContent = `Start Exercises`;
 
-            // Clear previous vocabulary and render new one
             vocabularyList.innerHTML = '<h3 class="text-xl font-semibold text-gray-700 mb-4">New Vocabulary:</h3>';
             if (lesson.vocabulary && lesson.vocabulary.length > 0) {
                 lesson.vocabulary.forEach(item => {
@@ -475,31 +438,23 @@
             showScreen(lessonScreen);
         }
 
-        /**
-         * Starts the current lesson by displaying the first question.
-         */
         function startCurrentLesson() {
             showScreen(questionScreen);
             renderQuestion();
         }
 
-        /**
-         * Renders the current question based on its type.
-         */
         function renderQuestion() {
-            // Reset feedback and buttons
             feedbackMessage.classList.add('hidden');
             nextQuestionBtn.classList.add('hidden');
             checkAnswerBtn.classList.remove('hidden');
             answerInput.value = '';
-            selectedChoice = null; // Clear selected choice
-            speechDisplay.textContent = 'Press \'Start Speaking\' to begin...'; // Reset speech display
-            speechStatus.classList.add('hidden'); // Hide listening status
-            startSpeakingBtn.classList.remove('hidden'); // Show start speaking button
-            noSpeechSupportMessage.classList.add('hidden'); // Hide speech support message
-            skipSpeakingBtn.classList.add('hidden'); // Hide skip button by default
+            selectedChoice = null;
+            speechDisplay.textContent = 'Press \'Start Speaking\' to begin...';
+            speechStatus.classList.add('hidden');
+            startSpeakingBtn.classList.remove('hidden');
+            noSpeechSupportMessage.classList.add('hidden');
+            skipSpeakingBtn.classList.add('hidden');
 
-            // Hide all specific input/display areas first
             choicesContainer.classList.add('hidden');
             answerInput.classList.add('hidden');
             speakingExerciseContainer.classList.add('hidden');
@@ -511,11 +466,11 @@
 
             if (question.type === "multiple-choice") {
                 choicesContainer.classList.remove('hidden');
-                choicesContainer.innerHTML = ''; // Clear previous choices
+                choicesContainer.innerHTML = '';
                 question.choices.forEach((choice, index) => {
                     const choiceBtn = document.createElement('button');
                     choiceBtn.classList.add('choice-btn');
-                    choiceBtn.innerHTML = `<span class="choice-number">${index + 1}</span><span>${choice}</span>`; // Add number
+                    choiceBtn.innerHTML = `<span class="choice-number">${index + 1}</span><span>${choice}</span>`;
                     choiceBtn.dataset.choice = choice;
                     choiceBtn.addEventListener('click', () => selectChoice(choiceBtn));
                     choicesContainer.appendChild(choiceBtn);
@@ -525,8 +480,7 @@
                 answerInput.focus();
             } else if (question.type === "speaking") {
                 speakingExerciseContainer.classList.remove('hidden');
-                skipSpeakingBtn.classList.remove('hidden'); // Show skip button for speaking
-                // Check for SpeechRecognition API support
+                skipSpeakingBtn.classList.remove('hidden');
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!SpeechRecognition) {
                     startSpeakingBtn.classList.add('hidden');
@@ -536,13 +490,9 @@
                     noSpeechSupportMessage.classList.add('hidden');
                 }
             }
-            updateProgressBar(); // Update text progress for the new question
+            updateProgressBar();
         }
 
-        /**
-         * Handles the selection of a multiple-choice answer.
-         * @param {HTMLElement} button - The button element that was clicked.
-         */
         function selectChoice(button) {
             document.querySelectorAll('.choice-btn').forEach(btn => {
                 btn.classList.remove('selected', 'correct', 'incorrect');
@@ -551,18 +501,11 @@
             selectedChoice = button.dataset.choice;
         }
 
-        /**
-         * Compares two strings using a fuzzy matching algorithm.
-         * Returns true if the similarity is above the FUZZY_MATCH_THRESHOLD.
-         * @param {string} userAnswer - The user's input string.
-         * @param {string} correctAnswer - The correct answer string.
-         * @returns {boolean} True if the answers are a fuzzy match, false otherwise.
-         */
         function compareAnswersFuzzy(userAnswer, correctAnswer) {
             const userWords = userAnswer.toLowerCase().split(/\s+/).filter(word => word.length > 0);
             const correctWords = correctAnswer.toLowerCase().split(/\s+/).filter(word => word.length > 0);
 
-            if (correctWords.length === 0) return true; // Avoid division by zero if correct answer is empty
+            if (correctWords.length === 0) return true;
 
             let matchedWordsCount = 0;
             const correctWordsSet = new Set(correctWords);
@@ -573,14 +516,10 @@
                 }
             });
 
-            // Calculate percentage of correct words found in the user's answer
             const matchPercentage = (matchedWordsCount / correctWords.length) * 100;
             return matchPercentage >= FUZZY_MATCH_THRESHOLD;
         }
 
-        /**
-         * Checks the user's answer and provides feedback.
-         */
         function checkAnswer() {
             const lesson = courses[currentLessonIndex];
             const question = lesson.questions[currentQuestionIndex];
@@ -592,32 +531,25 @@
                 isCorrect = (selectedChoice && selectedChoice.toLowerCase() === question.correctAnswer.toLowerCase());
             } else if (question.type === "translation-input") {
                 userAnswer = answerInput.value.trim();
-                // Apply fuzzy matching for translation input
                 isCorrect = compareAnswersFuzzy(userAnswer, question.correctAnswer);
             } else if (question.type === "speaking") {
-                // For speaking exercises, the user's answer is already in speechDisplay
                 userAnswer = speechDisplay.textContent.trim();
-                // If speech recognition is not supported, consider it incorrect unless a manual bypass is added
-                if (noSpeechSupportMessage.classList.contains('hidden')) { // Only check if speech is supported
+                if (noSpeechSupportMessage.classList.contains('hidden')) {
                     isCorrect = compareAnswersFuzzy(userAnswer, question.correctAnswer);
                 } else {
-                    isCorrect = false; // Cannot check if speech recognition is not supported
+                    isCorrect = false;
                 }
             }
 
-            // Prevent checking if no valid input (for text/speaking) or no selection (for multiple choice)
-            // unless it's already determined as correct (e.g., via fuzzy match)
             if (question.type !== "multiple-choice" && userAnswer === '' && !isCorrect) {
-                return; // Do not proceed if input is empty and not correct
+                return;
             }
             if (question.type === "multiple-choice" && selectedChoice === null && !isCorrect) {
-                return; // Do not proceed if no choice and not correct
+                return;
             }
-
 
             feedbackMessage.classList.remove('hidden');
             if (isCorrect) {
-                // Randomly select a positive feedback message
                 const randomMessage = positiveFeedbackMessages[Math.floor(Math.random() * positiveFeedbackMessages.length)];
                 feedbackMessage.textContent = randomMessage;
                 feedbackMessage.className = 'text-center text-lg font-semibold mt-4 text-green-600';
@@ -645,47 +577,36 @@
             nextQuestionBtn.classList.remove('hidden');
         }
 
-        /**
-         * Advances to the next question or lesson.
-         */
-        function nextQuestion() {
+        async function nextQuestion() {
             currentQuestionIndex++;
             const lesson = courses[currentLessonIndex];
 
             if (currentQuestionIndex < lesson.questions.length) {
                 renderQuestion();
             } else {
-                // Current lesson completed
                 userProgress[currentLessonIndex] = true;
-                saveProgress();
+                await saveProgress();
                 updateProgressBar();
-                currentQuestionIndex = 0; // Reset question index for the next lesson
-                currentLessonIndex++; // Move to the next lesson
+                currentQuestionIndex = 0;
+                currentLessonIndex++;
 
                 if (currentLessonIndex < courses.length) {
                     renderLesson();
                 } else {
-                    // All lessons completed
                     showScreen(courseCompleteScreen);
                 }
             }
         }
 
-        /**
-         * Resets the course progress and restarts from the beginning.
-         */
-        function restartCourse() {
+        async function restartCourse() {
             currentLessonIndex = 0;
             currentQuestionIndex = 0;
             userProgress = {};
-            saveProgress();
+            await saveProgress();
             updateProgressBar();
             showScreen(homeScreen);
         }
 
-        /**
-         * Starts the speech recognition process.
-         */
         function startSpeaking() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -695,42 +616,37 @@
                 return;
             }
 
-            // Stop any existing recognition instance to prevent multiple listeners
             if (currentSpeechRecognition) {
                 currentSpeechRecognition.stop();
             }
 
             currentSpeechRecognition = new SpeechRecognition();
-            currentSpeechRecognition.lang = 'it-IT'; // Set language to Italian
-            currentSpeechRecognition.interimResults = false; // Only return final results
-            currentSpeechRecognition.maxAlternatives = 1; // Get the most probable result
+            currentSpeechRecognition.lang = 'it-IT';
+            currentSpeechRecognition.interimResults = false;
+            currentSpeechRecognition.maxAlternatives = 1;
 
             speechDisplay.textContent = 'Listening...';
             speechStatus.classList.remove('hidden');
-            startSpeakingBtn.classList.add('hidden'); // Hide the start button while listening
+            startSpeakingBtn.classList.add('hidden');
 
             currentSpeechRecognition.onresult = (event) => {
                 const speechResult = event.results[0][0].transcript;
                 speechDisplay.textContent = speechResult;
-                // Automatically check the answer after speech is recognized
                 checkAnswer();
             };
 
             currentSpeechRecognition.onspeechend = () => {
                 currentSpeechRecognition.stop();
                 speechStatus.classList.add('hidden');
-                startSpeakingBtn.classList.remove('hidden'); // Show button again
+                startSpeakingBtn.classList.remove('hidden');
             };
 
             currentSpeechRecognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
                 speechDisplay.textContent = 'Error listening. Please try again.';
                 speechStatus.classList.add('hidden');
-                startSpeakingBtn.classList.remove('hidden'); // Show button again
+                startSpeakingBtn.classList.remove('hidden');
                 if (event.error === 'not-allowed') {
-                    // This error indicates that the user has blocked microphone access
-                    // in their browser settings. The application cannot programmatically
-                    // grant this permission; the user must do it manually.
                     speechDisplay.textContent = 'Microphone permission denied. Please enable it in browser settings.';
                 } else if (event.error === 'no-speech') {
                     speechDisplay.textContent = 'No speech detected. Try again.';
@@ -747,20 +663,6 @@
             }
         }
 
-        // Event Listeners
-        startCourseBtn.addEventListener('click', () => {
-            // Initialize Tone.js audio context on user interaction to avoid browser autoplay policies
-            Tone.start();
-            startCourse();
-        });
-        continueLessonBtn.addEventListener('click', startCurrentLesson);
-        checkAnswerBtn.addEventListener('click', checkAnswer);
-        nextQuestionBtn.addEventListener('click', nextQuestion);
-        restartCourseBtn.addEventListener('click', restartCourse);
-        startSpeakingBtn.addEventListener('click', startSpeaking); // New event listener for speaking button
-        skipSpeakingBtn.addEventListener('click', nextQuestion); // New event listener for skip button
-
-        // Global keydown listener for "Enter" key and number keys
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 if (!checkAnswerBtn.classList.contains('hidden')) {
@@ -773,31 +675,107 @@
                     startCurrentLesson();
                 } else if (!restartCourseBtn.classList.contains('hidden')) {
                     restartCourse();
+                } else if (document.activeElement === document.getElementById('email-input') || document.activeElement === document.getElementById('password-input')) {
+                     // If focus is on email/password inputs, attempt sign-in by default
+                    if (document.activeElement === document.getElementById('password-input') && !document.getElementById('auth-controls').classList.contains('hidden')) {
+                        signInWithEmail();
+                    }
                 }
-            } else if (event.key >= '1' && event.key <= '4') { // For number keys 1-4
-                const question = courses[currentLessonIndex].questions[currentQuestionIndex];
-                if (question.type === "multiple-choice" && !choicesContainer.classList.contains('hidden')) {
-                    const choiceIndex = parseInt(event.key, 10) - 1;
-                    const choiceButtons = choicesContainer.querySelectorAll('.choice-btn');
-                    if (choiceIndex >= 0 && choiceIndex < choiceButtons.length) {
-                        selectChoice(choiceButtons[choiceIndex]);
-                        checkAnswer(); // Automatically check answer after selection
+            } else if (event.key >= '1' && event.key <= '4') {
+                if (!questionScreen.classList.contains('hidden')) {
+                    const currentQuestion = courses[currentLessonIndex].questions[currentQuestionIndex];
+                    if (currentQuestion.type === "multiple-choice" && !choicesContainer.classList.contains('hidden')) {
+                        const choiceIndex = parseInt(event.key, 10) - 1;
+                        const choiceButtons = choicesContainer.querySelectorAll('.choice-btn');
+                        if (choiceIndex >= 0 && choiceIndex < choiceButtons.length) {
+                            selectChoice(choiceButtons[choiceIndex]);
+                            if (!checkAnswerBtn.classList.contains('hidden')) {
+                                checkAnswer();
+                            }
+                        }
                     }
                 }
             }
         });
 
-        // Initial Load: Determines which screen to show on page load based on saved progress.
-        loadProgress();
-        if (currentLessonIndex === 0 && currentQuestionIndex === 0 && Object.keys(userProgress).length === 0) {
-            showScreen(homeScreen);
-        } else if (currentLessonIndex >= courses.length) {
-            showScreen(courseCompleteScreen);
-        } else {
-            showScreen(lessonScreen);
-            renderLesson();
-        }
     </script>
+</head>
+<body class="selection:bg-green-200 selection:text-green-800">
+    <!-- Main application container with responsive padding -->
+    <div id="app-container" class="container-wrapper p-4 sm:p-8">
+
+        <!-- User Authentication Status -->
+        <div class="flex flex-col md:flex-row justify-between items-center text-sm text-gray-600 mb-4 p-2 bg-gray-50 rounded-lg shadow-sm">
+            <span id="auth-status" class="mb-2 md:mb-0">Loading authentication status...</span>
+            <span id="user-id-display" class="mb-2 md:mb-0">Loading User ID...</span>
+            <div id="auth-controls" class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 w-full md:w-auto mt-4 md:mt-0">
+                <input type="email" id="email-input" placeholder="Email" class="p-2 border rounded-md text-gray-800 w-full md:w-auto">
+                <input type="password" id="password-input" placeholder="Password" class="p-2 border rounded-md text-gray-800 w-full md:w-auto">
+                <button id="signup-email-btn" class="btn btn-primary text-sm w-full md:w-auto" onclick="signUpWithEmail()">Sign Up</button>
+                <button id="signin-email-btn" class="btn btn-secondary text-sm w-full md:w-auto" onclick="signInWithEmail()">Sign In</button>
+            </div>
+            <button id="signout-btn" class="btn btn-secondary text-sm hidden mt-4 md:mt-0 w-full md:w-auto" onclick="signOutUser()">Sign Out</button>
+        </div>
+        <!-- Authentication Error Message -->
+        <div id="auth-error-message" class="hidden text-center text-red-500 text-sm mb-4"></div>
+
+
+        <!-- Progress Info and Bar -->
+        <div class="flex items-center mb-4">
+            <div id="lesson-progress-text" class="text-gray-700 font-medium mr-4 flex-shrink-0"></div>
+            <div class="progress-bar flex-grow">
+                <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <!-- Home Screen -->
+        <div id="home-screen" class="text-center">
+            <h1 class="text-4xl font-bold text-gray-800 mb-6">Learn Italian</h1>
+            <p class="text-lg text-gray-600 mb-8">Your journey to speaking Italian starts here!</p>
+            <button id="start-course-btn" class="btn btn-primary text-xl px-8 py-4" onclick="startCourse()">Start Learning</button>
+        </div>
+
+        <!-- Lesson Screen -->
+        <div id="lesson-screen" class="hidden">
+            <h2 id="lesson-title" class="text-3xl font-semibold text-gray-800 mb-4"></h2>
+            <p id="lesson-description" class="text-lg text-gray-700 mb-8"></p>
+            <div id="vocabulary-list" class="bg-gray-50 p-4 rounded-lg mb-6 shadow-inner">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">New Vocabulary:</h3>
+                <!-- Vocabulary items will be rendered here -->
+            </div>
+            <button id="continue-lesson-btn" class="btn btn-primary w-full" onclick="startCurrentLesson()">Start Exercises</button>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="question-screen" class="hidden">
+            <p id="question-text" class="text-2xl text-gray-800 font-medium mb-6"></p>
+            <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- Choices will be rendered here -->
+            </div>
+            <input type="text" id="answer-input" placeholder="Type your answer here..." class="hidden mb-6">
+
+            <!-- Speaking Exercise Controls -->
+            <div id="speaking-exercise-container" class="hidden">
+                <div id="speech-display" class="w-full text-gray-500">Press 'Start Speaking' to begin...</div>
+                <div id="speaking-controls">
+                    <button id="start-speaking-btn" class="btn btn-primary" onclick="startSpeaking()">Start Speaking 🎤</button>
+                    <p id="speech-status" class="text-sm text-gray-600 hidden">Listening...</p>
+                    <p id="no-speech-support-message" class="text-sm text-red-500 hidden">Speech recognition not supported in this browser.</p>
+                </div>
+                <button id="skip-speaking-btn" class="skip-btn hidden" onclick="nextQuestion()">Skip Exercise</button>
+            </div>
+
+            <div id="feedback-message" class="text-center text-lg font-semibold mt-4 hidden"></div>
+            <button id="check-answer-btn" class="btn btn-primary w-full mt-4" onclick="checkAnswer()">Check Answer</button>
+            <button id="next-question-btn" class="btn btn-secondary w-full mt-4 hidden" onclick="nextQuestion()">Next</button>
+        </div>
+
+        <!-- Course Complete Screen -->
+        <div id="course-complete-screen" class="hidden text-center">
+            <h2 class="text-4xl font-bold text-green-600 mb-6">Congratulations!</h2>
+            <p class="text-lg text-gray-700 mb-8">You have completed all the lessons in this course.</p>
+            <button id="restart-course-btn" class="btn btn-primary text-xl px-8 py-4" onclick="restartCourse()">Restart Course</button>
+        </div>
+    </div>
 </body>
 </html>
-
