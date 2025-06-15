@@ -126,11 +126,27 @@
                 width: auto; /* Buttons take natural width */
             }
         }
+        .warning-message {
+            background-color: #fff3cd; /* Light yellow */
+            color: #856404; /* Dark yellow text */
+            border: 1px solid #ffeeba;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            margin-top: 1rem;
+            text-align: center;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body class="selection:bg-green-200 selection:text-green-800">
     <div id="app-container" class="container-wrapper">
         <h1 class="text-3xl font-bold text-gray-800 text-center mb-6">Your Account</h1>
+
+        <!-- Firebase Configuration Warning -->
+        <div id="firebase-config-warning" class="warning-message hidden">
+            <p><strong>Warning:</strong> Firebase configuration not found or invalid. Authentication features will not function correctly.</p>
+            <p class="text-sm mt-1">Please ensure your environment provides `__firebase_config` correctly.</p>
+        </div>
 
         <!-- Authentication Status Display -->
         <div id="auth-status-display" class="auth-info-box">
@@ -144,18 +160,19 @@
             <h2 class="text-2xl font-semibold text-gray-700 text-center mb-2">Manage Your Account</h2>
             <div id="auth-error-message" class="hidden text-center text-red-500 font-medium text-sm bg-red-50 p-2 rounded-lg border border-red-200"></div>
 
-            <div class="auth-controls-group">
-                <input type="email" id="email-input" placeholder="Email Address">
-                <input type="password" id="password-input" placeholder="Password">
-                <button id="signup-email-btn" class="btn btn-primary" onclick="signUpWithEmail()">Sign Up</button>
-                <button id="signin-email-btn" class="btn btn-secondary" onclick="signInWithEmail()">Sign In</button>
-                <button id="github-signin-btn" class="btn btn-github flex items-center justify-center space-x-2" onclick="signInWithGithub()">
+            <!-- Form for Email/Password and GitHub login -->
+            <form class="auth-controls-group" onsubmit="event.preventDefault();">
+                <input type="email" id="email-input" placeholder="Email Address" required>
+                <input type="password" id="password-input" placeholder="Password" required>
+                <button type="button" id="signup-email-btn" class="btn btn-primary" onclick="signUpWithEmail()">Sign Up</button>
+                <button type="button" id="signin-email-btn" class="btn btn-secondary" onclick="signInWithEmail()">Sign In</button>
+                <button type="button" id="github-signin-btn" class="btn btn-github flex items-center justify-center space-x-2" onclick="signInWithGithub()">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017 2 16.292 4.84 19.88 8.875 21.042c.408.07.558-.175.558-.385 0-.19-.008-.68-.016-1.336-2.782.603-3.37-1.34-3.37-1.34-.454-1.15-1.11-1.455-1.11-1.455-.908-.62.069-.608.069-.608 1.006.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.089 2.91.833.091-.647.35-1.088.636-1.339-2.22-.253-4.555-1.115-4.555-4.945 0-1.09.39-1.984 1.029-2.682-.103-.253-.446-1.27.098-2.65S11.996 3 12 3c0 .004 0 .008 0 .012a.65.65 0 0 0 0 .14c.008.083.008.166.016.25l.024.28c.08.978.508 2.05 1.48 2.65.6.353 1.258.528 1.916.528.658 0 1.316-.175 1.916-.528 1.492-.882 1.92-2.004 1.92-2.915 0-.092.008-.184.016-.275.008-.092.008-.184.016-.275C21.055 6.484 22 10.984 22 12.017c0 5.533-4.477 9.99-9.998 9.99A9.995 9.995 0 0 1 2 12.017Zm-1.84 5.372c-.14.288-.472.396-.757.256-.285-.14-.396-.472-.256-.757.14-.285.472-.396.757-.256.285.14.396.472.256.757Z" clip-rule="evenodd" />
                     </svg>
                     <span>Login with GitHub</span>
                 </button>
-            </div>
+            </form>
         </div>
 
         <hr class="border-t border-gray-200 my-6">
@@ -176,17 +193,23 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let firebaseConfig = {};
 
+        const firebaseConfigWarning = document.getElementById('firebase-config-warning');
+
         // Log the raw __firebase_config to see its value
         console.log("Raw __firebase_config:", typeof __firebase_config !== 'undefined' ? __firebase_config : "undefined");
 
-        try {
-            // Attempt to parse __firebase_config if it's defined and not just an empty string
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        // Attempt to parse __firebase_config if it's defined and a non-empty string
+        if (typeof __firebase_config === 'string' && __firebase_config.trim() !== '') {
+            try {
                 firebaseConfig = JSON.parse(__firebase_config);
+            } catch (e) {
+                console.error("Error parsing __firebase_config:", e);
+                displayAuthError("Error initializing Firebase config. Check console for details.");
+                if (firebaseConfigWarning) firebaseConfigWarning.classList.remove('hidden');
             }
-        } catch (e) {
-            console.error("Error parsing __firebase_config:", e);
-            displayAuthError("Error initializing Firebase config. Check console.");
+        } else {
+            console.warn("Firebase config string is empty or undefined. Authentication will not function.");
+            if (firebaseConfigWarning) firebaseConfigWarning.classList.remove('hidden');
         }
 
         // Log the parsed firebaseConfig to confirm its content
@@ -237,12 +260,14 @@
                     signInWithCustomToken(auth, initialAuthToken).catch(error => {
                         console.error("Custom token sign-in error:", error);
                         displayAuthError(error.message);
+                        // Fallback to anonymous sign-in if custom token fails
                         signInAnonymously(auth).catch(anonError => {
                             console.error("Fallback anonymous sign-in error:", anonError);
                             displayAuthError(anonError.message);
                         });
                     });
                 } else if (!auth.currentUser) {
+                    // If no custom token and no current user, try anonymous sign-in
                     signInAnonymously(auth).catch((error) => {
                         console.error("Anonymous sign-in on initial load error:", error);
                         displayAuthError(error.message);
@@ -252,7 +277,7 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        if (authStatusSpan) authStatusSpan.textContent = `Signed in as: ${user.isAnonymous ? 'Anonymous' : user.email || 'User'}`;
+                        if (authStatusSpan) authStatusSpan.textContent = `Signed in as: ${user.isAnonymous ? 'Anonymous' : user.email || user.displayName || 'User'}`;
                         if (userIdDisplaySpan) userIdDisplaySpan.textContent = `User ID: ${userId}`;
 
                         if (user.isAnonymous) {
@@ -277,6 +302,7 @@
             } catch (initError) {
                 console.error("Firebase initialization failed:", initError);
                 displayAuthError("Firebase setup error. Check console for details.");
+                if (firebaseConfigWarning) firebaseConfigWarning.classList.remove('hidden');
                 // Fallback to local-only display if Firebase init fails
                 if (authStatusSpan) authStatusSpan.textContent = 'Firebase not initialized.';
                 if (userIdDisplaySpan) userIdDisplaySpan.textContent = 'User ID: N/A';
@@ -284,7 +310,8 @@
                 if (signoutBtn) signoutBtn.classList.add('hidden');
             }
         } else {
-            console.warn("Firebase config not found. Running in local-only mode. Authentication will not function.");
+            console.warn("Firebase config is empty. Running in local-only mode. Authentication will not function.");
+            if (firebaseConfigWarning) firebaseConfigWarning.classList.remove('hidden');
             if (authStatusSpan) authStatusSpan.textContent = 'Firebase not configured.';
             if (userIdDisplaySpan) userIdDisplaySpan.textContent = 'User ID: N/A (Local Only)';
             if (authForms) authForms.classList.remove('hidden'); // Show forms, but they won't do anything
@@ -293,7 +320,7 @@
 
         async function signUpWithEmail() {
             if (!auth) {
-                displayAuthError("Firebase authentication not initialized. Check console for Firebase config.");
+                displayAuthError("Firebase authentication not initialized. Please ensure Firebase configuration is correct.");
                 return;
             }
             const email = document.getElementById('email-input').value;
@@ -313,7 +340,7 @@
 
         async function signInWithEmail() {
             if (!auth) {
-                displayAuthError("Firebase authentication not initialized. Check console for Firebase config.");
+                displayAuthError("Firebase authentication not initialized. Please ensure Firebase configuration is correct.");
                 return;
             }
             const email = document.getElementById('email-input').value;
@@ -333,7 +360,7 @@
 
         async function signInWithGithub() {
             if (!auth) {
-                displayAuthError("Firebase authentication not initialized. Check console for Firebase config.");
+                displayAuthError("Firebase authentication not initialized. Please ensure Firebase configuration is correct.");
                 return;
             }
             const provider = new GithubAuthProvider();
@@ -357,7 +384,7 @@
 
         async function signOutUser() {
             if (!auth) {
-                displayAuthError("Firebase authentication not initialized. Check console for Firebase config.");
+                displayAuthError("Firebase authentication not initialized. Please ensure Firebase configuration is correct.");
                 return;
             }
             try {
