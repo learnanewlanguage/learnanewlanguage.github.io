@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn Italian - Start Your Journey Today!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-grey background */
+            color: #333;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+        .container-padding {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            max-width: 1200px; /* Max width for content */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .btn-primary {
+            background-color: #4CAF50; /* Duolingo green */
+            color: #ffffff;
+            padding: 0.75rem 2rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+            padding: 2rem;
+            transition: transform 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Loading Screen Styles */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9); /* Semi-transparent white overlay */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top of everything */
+            opacity: 0; /* Start hidden */
+            visibility: hidden; /* Start hidden */
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        #loading-screen.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid #4CAF50; /* Duolingo green */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="selection:bg-green-200 selection:text-green-800">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="spinner mb-4"></div>
+        <p class="text-xl text-gray-700">Loading your course...</p>
+    </div>
+
+    <!-- Header/Navigation (Optional, can be added later) -->
+    <header class="py-4 bg-white shadow-sm">
+        <nav class="container-padding flex justify-between items-center">
+            <a href="#" class="text-2xl font-bold text-gray-800">Learn A New <span class="text-green-500">Language</span></a>
+            <!-- <ul class="hidden md:flex space-x-6">
+                <li><a href="#features" class="text-gray-600 hover:text-green-600 font-medium">Features</a></li>
+                <li><a href="#about" class="text-gray-600 hover:text-green-600 font-medium">Start Now</a></li>
+            </ul> -->
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-r from-green-500 to-blue-500 text-white py-20 md:py-32 flex items-center justify-center min-h-[60vh]">
+        <div class="container-padding text-center">
+            <h1 class="text-4xl md:text-6xl font-extrabold leading-tight mb-6">
+                Unlock the Beauty of Italian 🇮🇹
+            </h1>
+            <p class="text-lg md:text-xl mb-10 max-w-2xl mx-auto">
+                Start your journey to fluency with our fun, interactive, and effective Italian course. No accounts, just learning!
+            </p>
+            <button class="btn-primary text-xl md:text-2xl px-10 py-4" onclick="showLoadingAndRedirect()">Start Learning Today!</button>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-16 md:py-24 bg-white">
+        <div class="container-padding">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-800 text-center mb-12">Why Choose Our Italian Course?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="card text-center">
+                    <div class="text-5xl mb-4">📚</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Structured Lessons</h3>
+                    <p class="text-gray-600">Progress through carefully designed lessons, from greetings to complex phrases.</p>
+                </div>
+                <!-- Feature 2 -->
+                <div class="card text-center">
+                    <div class="text-5xl mb-4">🎤</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Speaking Practice</h3>
+                    <p class="text-gray-600">Practice your pronunciation with integrated speech recognition exercises.</p>
+                </div>
+                <!-- Feature 3 -->
+                <div class="card text-center">
+                    <div class="text-5xl mb-4">📝</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Interactive Exercises</h3>
+                    <p class="text-gray-600">Engage with multiple-choice and translation challenges for effective learning.</p>
+                </div>
+                <!-- Feature 4 -->
+                <div class="card text-center">
+                    <div class="text-5xl mb-4">💾</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Progress Saved</h3>
+                    <p class="text-gray-600">Your learning progress is saved automatically in your browser.</p>
+                </div>
+                <!-- Feature 5 -->
+                <div class="card text-center">
+                    <div class="text-5xl mb-4">✨</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Duolingo-like Experience</h3>
+                    <p class="text-gray-600">Enjoy a familiar and encouraging learning style without an account.</p>
+                </div>
+                <!-- Feature 6 -->
+                <div class="card text-center">
+                    <div class="text-5xl mb-4">💡</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">New Vocabulary First</h3>
+                    <p class="text-gray-600">Learn new words and phrases before you're tested on them, just like real learning.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-16 md:py-24 bg-blue-50">
+        <div class="container-padding text-center max-w-4xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-8">About This Course</h2>
+            <p class="text-lg text-gray-700 leading-relaxed mb-6">
+                Designed for beginners, our Italian language course focuses on building a strong foundation in a fun and accessible way. We believe that learning a new language should be an exciting adventure, not a chore. With interactive lessons, immediate feedback, and the ability to track your progress effortlessly, you'll be speaking Italian with confidence in no time.
+            </p>
+            <p class="text-lg text-gray-700 leading-relaxed">
+                Whether you're planning a trip to Italy, connecting with family, or simply challenging yourself, our course is the perfect starting point.
+            </p>
+        </div>
+    </section>
+
+    <!-- Call to Action Section -->
+    <section id="cta" class="bg-gradient-to-r from-green-600 to-green-800 text-white py-16 md:py-20 text-center">
+        <div class="container-padding max-w-3xl mx-auto">
+            <h2 class="text-3xl md:text-5xl font-extrabold mb-8">Ready to Speak Italian?</h2>
+            <p class="text-lg md:text-xl mb-10">
+                Join thousands of eager learners and begin your linguistic journey today. It's free, fun, and effective!
+            </p>
+            <button class="btn-primary text-xl md:text-2xl px-12 py-5 bg-white text-green-700 hover:bg-gray-100" onclick="showLoadingAndRedirect()">
+                Start Learning Now!
+            </button>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container-padding text-center text-sm text-gray-400">
+            &copy; 2025 Learn A New Language. All rights reserved.
+        </div>
+    </footer>
+
+    <script>
+        function showLoadingAndRedirect() {
+            const loadingScreen = document.getElementById('loading-screen');
+            loadingScreen.classList.add('visible'); // Show the loading screen
+
+            // Wait a moment before redirecting to allow the loading animation to be seen
+            setTimeout(() => {
+                window.location.href = 'learn.html';
+            }, 500); // Redirect after 500 milliseconds (0.5 seconds)
+        }
+    </script>
+</body>
+</html>
