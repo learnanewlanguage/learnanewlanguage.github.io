@@ -174,7 +174,24 @@
         // Global variables for Firebase (provided by Canvas environment)
         // Ensure these are correctly passed in your deployment environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        let firebaseConfig = {};
+
+        // Log the raw __firebase_config to see its value
+        console.log("Raw __firebase_config:", typeof __firebase_config !== 'undefined' ? __firebase_config : "undefined");
+
+        try {
+            // Attempt to parse __firebase_config if it's defined and not just an empty string
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                firebaseConfig = JSON.parse(__firebase_config);
+            }
+        } catch (e) {
+            console.error("Error parsing __firebase_config:", e);
+            displayAuthError("Error initializing Firebase config. Check console.");
+        }
+
+        // Log the parsed firebaseConfig to confirm its content
+        console.log("Parsed firebaseConfig:", firebaseConfig);
+
 
         let app = null;
         let db = null;
@@ -212,6 +229,7 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                console.log("Firebase initialized successfully.");
 
                 // Initial sign-in with custom token if available (for Canvas environment)
                 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -238,7 +256,7 @@
                         if (userIdDisplaySpan) userIdDisplaySpan.textContent = `User ID: ${userId}`;
 
                         if (user.isAnonymous) {
-                            // If anonymous, show an option to log in/sign up
+                            // If anonymous, show forms to encourage login/signup
                             if (authForms) authForms.classList.remove('hidden');
                             if (signoutBtn) signoutBtn.classList.add('hidden'); // Hide sign out for anonymous
                         } else {
@@ -251,7 +269,7 @@
                         userId = crypto.randomUUID(); // Set a new random ID for unauthenticated state
                         if (authStatusSpan) authStatusSpan.textContent = 'Signed out';
                         if (userIdDisplaySpan) userIdDisplaySpan.textContent = `User ID: Not signed in`;
-                        if (authForms) authForms.classList.remove('hidden');
+                        if (authForms) authForms.classList.remove('hidden'); // Show forms
                         if (signoutBtn) signoutBtn.classList.add('hidden');
                     }
                 });
@@ -275,7 +293,7 @@
 
         async function signUpWithEmail() {
             if (!auth) {
-                displayAuthError("Firebase authentication not initialized.");
+                displayAuthError("Firebase authentication not initialized. Check console for Firebase config.");
                 return;
             }
             const email = document.getElementById('email-input').value;
@@ -295,7 +313,7 @@
 
         async function signInWithEmail() {
             if (!auth) {
-                displayAuthError("Firebase authentication not initialized.");
+                displayAuthError("Firebase authentication not initialized. Check console for Firebase config.");
                 return;
             }
             const email = document.getElementById('email-input').value;
@@ -315,7 +333,7 @@
 
         async function signInWithGithub() {
             if (!auth) {
-                displayAuthError("Firebase authentication not initialized.");
+                displayAuthError("Firebase authentication not initialized. Check console for Firebase config.");
                 return;
             }
             const provider = new GithubAuthProvider();
@@ -329,6 +347,8 @@
                     displayAuthError("Sign-in popup closed. Please try again.");
                 } else if (error.code === 'auth/cancelled-popup-request') {
                     displayAuthError("Sign-in already in progress or popup blocked. Please try again.");
+                } else if (error.code === 'auth/popup-blocked') {
+                    displayAuthError("Popup blocked by your browser. Please allow popups for this site.");
                 } else {
                     displayAuthError(error.message);
                 }
@@ -337,7 +357,7 @@
 
         async function signOutUser() {
             if (!auth) {
-                displayAuthError("Firebase authentication not initialized.");
+                displayAuthError("Firebase authentication not initialized. Check console for Firebase config.");
                 return;
             }
             try {
