@@ -68,8 +68,7 @@
         .choice-btn {
             width: 100%;
             display: flex;
-            justify-content: center;
-            align-items: center;
+            align-items: center; /* Align number and text vertically */
             padding: 1rem;
             border-radius: 0.75rem;
             border: 2px solid #e0e0e0;
@@ -78,6 +77,13 @@
             font-weight: 500;
             transition: all 0.2s ease-in-out;
             cursor: pointer;
+        }
+        .choice-btn .choice-number {
+            margin-right: 0.75rem; /* Space between number and text */
+            font-weight: 700;
+            color: #888;
+            min-width: 1.5rem; /* Ensure consistent spacing for numbers */
+            text-align: center;
         }
         .choice-btn:hover {
             background-color: #f0f0f0;
@@ -154,6 +160,20 @@
             align-items: center;
             gap: 0.75rem;
         }
+        .skip-btn {
+            background-color: #f0f0f0;
+            color: #555;
+            border: 1px solid #ddd;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        .skip-btn:hover {
+            background-color: #e0e0e0;
+        }
     </style>
 </head>
 <body class="selection:bg-green-200 selection:text-green-800">
@@ -202,6 +222,7 @@
                     <p id="speech-status" class="text-sm text-gray-600 hidden">Listening...</p>
                     <p id="no-speech-support-message" class="text-sm text-red-500 hidden">Speech recognition not supported in this browser.</p>
                 </div>
+                <button id="skip-speaking-btn" class="skip-btn hidden">Skip Exercise</button>
             </div>
 
             <div id="feedback-message" class="text-center text-lg font-semibold mt-4 hidden"></div>
@@ -266,7 +287,7 @@
                 ],
                 questions: [
                     { type: "translation-input", text: "Translate 'Yes' into Italian: ✅", correctAnswer: "Sì" },
-                    { type: "speaking", text: "Say 'No' in Italian: ❌", correctAnswer: "No" },
+                    { type: "speaking", text: "Say 'No' in Italian:❌", correctAnswer: "No" },
                     { type: "multiple-choice", text: "How do you say 'Excuse me' (formal)? 🙇", choices: ["Scusi", "Aiuto", "Acqua", "Pane"], correctAnswer: "Scusi" },
                     { type: "multiple-choice", text: "What does 'Mi dispiace' mean? 😔", choices: ["I'm happy", "I'm sorry", "I'm hungry", "I'm tired"], correctAnswer: "I'm sorry" }
                 ]
@@ -308,6 +329,7 @@
         const startSpeakingBtn = document.getElementById('start-speaking-btn');
         const speechStatus = document.getElementById('speech-status');
         const noSpeechSupportMessage = document.getElementById('no-speech-support-message');
+        const skipSpeakingBtn = document.getElementById('skip-speaking-btn'); // New skip button for speaking
 
         // Fuzzy matching threshold (percentage of matching words)
         const FUZZY_MATCH_THRESHOLD = 70; // 70% of words must match
@@ -475,6 +497,7 @@
             speechStatus.classList.add('hidden'); // Hide listening status
             startSpeakingBtn.classList.remove('hidden'); // Show start speaking button
             noSpeechSupportMessage.classList.add('hidden'); // Hide speech support message
+            skipSpeakingBtn.classList.add('hidden'); // Hide skip button by default
 
             // Hide all specific input/display areas first
             choicesContainer.classList.add('hidden');
@@ -489,10 +512,10 @@
             if (question.type === "multiple-choice") {
                 choicesContainer.classList.remove('hidden');
                 choicesContainer.innerHTML = ''; // Clear previous choices
-                question.choices.forEach(choice => {
+                question.choices.forEach((choice, index) => {
                     const choiceBtn = document.createElement('button');
                     choiceBtn.classList.add('choice-btn');
-                    choiceBtn.textContent = choice;
+                    choiceBtn.innerHTML = `<span class="choice-number">${index + 1}</span><span>${choice}</span>`; // Add number
                     choiceBtn.dataset.choice = choice;
                     choiceBtn.addEventListener('click', () => selectChoice(choiceBtn));
                     choicesContainer.appendChild(choiceBtn);
@@ -502,6 +525,7 @@
                 answerInput.focus();
             } else if (question.type === "speaking") {
                 speakingExerciseContainer.classList.remove('hidden');
+                skipSpeakingBtn.classList.remove('hidden'); // Show skip button for speaking
                 // Check for SpeechRecognition API support
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!SpeechRecognition) {
@@ -571,19 +595,23 @@
                 // Apply fuzzy matching for translation input
                 isCorrect = compareAnswersFuzzy(userAnswer, question.correctAnswer);
             } else if (question.type === "speaking") {
-                userAnswer = speechDisplay.textContent.trim(); // Get transcribed text
-                // Apply fuzzy matching for speaking input
-                isCorrect = compareAnswersFuzz(userAnswer, question.correctAnswer);
+                // For speaking exercises, the user's answer is already in speechDisplay
+                userAnswer = speechDisplay.textContent.trim();
+                // If speech recognition is not supported, consider it incorrect unless a manual bypass is added
+                if (noSpeechSupportMessage.classList.contains('hidden')) { // Only check if speech is supported
+                    isCorrect = compareAnswersFuzzy(userAnswer, question.correctAnswer);
+                } else {
+                    isCorrect = false; // Cannot check if speech recognition is not supported
+                }
             }
 
-            // Prevent checking if no valid input for non-multiple-choice questions
-            // Only return if the input is empty AND it's NOT correct (meaning the user hasn't provided
-            // enough to be considered a fuzzy match or directly correct)
-            if ((question.type === "translation-input" || question.type === "speaking") && userAnswer === '' && !isCorrect) {
-                return;
+            // Prevent checking if no valid input (for text/speaking) or no selection (for multiple choice)
+            // unless it's already determined as correct (e.g., via fuzzy match)
+            if (question.type !== "multiple-choice" && userAnswer === '' && !isCorrect) {
+                return; // Do not proceed if input is empty and not correct
             }
             if (question.type === "multiple-choice" && selectedChoice === null && !isCorrect) {
-                return;
+                return; // Do not proceed if no choice and not correct
             }
 
 
@@ -667,6 +695,11 @@
                 return;
             }
 
+            // Stop any existing recognition instance to prevent multiple listeners
+            if (currentSpeechRecognition) {
+                currentSpeechRecognition.stop();
+            }
+
             currentSpeechRecognition = new SpeechRecognition();
             currentSpeechRecognition.lang = 'it-IT'; // Set language to Italian
             currentSpeechRecognition.interimResults = false; // Only return final results
@@ -704,7 +737,14 @@
                 }
             };
 
-            currentSpeechRecognition.start();
+            try {
+                currentSpeechRecognition.start();
+            } catch (e) {
+                console.error("Speech recognition start failed:", e);
+                speechDisplay.textContent = 'Could not start microphone. Please check permissions.';
+                speechStatus.classList.add('hidden');
+                startSpeakingBtn.classList.remove('hidden');
+            }
         }
 
         // Event Listeners
@@ -718,8 +758,9 @@
         nextQuestionBtn.addEventListener('click', nextQuestion);
         restartCourseBtn.addEventListener('click', restartCourse);
         startSpeakingBtn.addEventListener('click', startSpeaking); // New event listener for speaking button
+        skipSpeakingBtn.addEventListener('click', nextQuestion); // New event listener for skip button
 
-        // Global keydown listener for "Enter" key
+        // Global keydown listener for "Enter" key and number keys
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 if (!checkAnswerBtn.classList.contains('hidden')) {
@@ -732,6 +773,16 @@
                     startCurrentLesson();
                 } else if (!restartCourseBtn.classList.contains('hidden')) {
                     restartCourse();
+                }
+            } else if (event.key >= '1' && event.key <= '4') { // For number keys 1-4
+                const question = courses[currentLessonIndex].questions[currentQuestionIndex];
+                if (question.type === "multiple-choice" && !choicesContainer.classList.contains('hidden')) {
+                    const choiceIndex = parseInt(event.key, 10) - 1;
+                    const choiceButtons = choicesContainer.querySelectorAll('.choice-btn');
+                    if (choiceIndex >= 0 && choiceIndex < choiceButtons.length) {
+                        selectChoice(choiceButtons[choiceIndex]);
+                        checkAnswer(); // Automatically check answer after selection
+                    }
                 }
             }
         });
@@ -749,3 +800,4 @@
     </script>
 </body>
 </html>
+
