@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Italian Language Course</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Tone.js for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        /* Global box-sizing for consistent layout behavior */
+        html {
+            box-sizing: border-box;
+        }
+        *, *::before, *::after {
+            box-sizing: inherit;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-grey background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem; /* Keeps a general margin around the main container */
+            overflow-x: hidden; /* Prevents horizontal scrolling on small screens */
+        }
+        .container-wrapper {
+            /* This div acts as the primary container, centered and responsive */
+            background-color: #ffffff;
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 900px; /* Increased max-width */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        /* Tailwind's padding classes will be applied directly to #app-container */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem; /* Rounded button corners */
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #4CAF50; /* Duolingo green */
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background-color: #f9f9f9;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .btn-secondary:hover {
+            background-color: #f0f0f0;
+            transform: translateY(-2px);
+        }
+        .choice-btn {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            border: 2px solid #e0e0e0;
+            background-color: #fdfdfd;
+            font-size: 1.125rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .choice-btn:hover {
+            background-color: #f0f0f0;
+            border-color: #c0c0c0;
+        }
+        .choice-btn.selected {
+            background-color: #e6f7ff; /* Light blue for selected */
+            border-color: #007bff; /* Blue border for selected */
+        }
+        .choice-btn.correct {
+            background-color: #d4edda; /* Light green for correct */
+            border-color: #28a745; /* Green border for correct */
+            color: #155724;
+        }
+        .choice-btn.incorrect {
+            background-color: #f8d7da; /* Light red for incorrect */
+            border-color: #dc3545; /* Red border for incorrect */
+            color: #721c24;
+        }
+        input[type="text"] {
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e0e0e0;
+            width: 100%;
+            font-size: 1.125rem;
+        }
+        .progress-bar {
+            height: 0.75rem;
+            background-color: #e0e0e0;
+            border-radius: 0.375rem;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 0.375rem;
+            transition: width 0.3s ease-in-out;
+        }
+        .vocabulary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+            font-size: 1.125rem;
+        }
+        .vocabulary-item:last-child {
+            border-bottom: none;
+        }
+        .vocabulary-word {
+            font-weight: 600;
+            color: #333;
+        }
+        .vocabulary-translation {
+            color: #555;
+        }
+        #speech-display {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            min-height: 50px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem;
+            color: #333;
+            margin-bottom: 1rem;
+            word-break: break-word; /* Ensure long words break */
+        }
+        #speaking-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+    </style>
+</head>
+<body class="selection:bg-green-200 selection:text-green-800">
+    <!-- Main application container with responsive padding -->
+    <div id="app-container" class="container-wrapper p-4 sm:p-8">
+
+        <!-- Progress Info and Bar -->
+        <div class="flex items-center mb-4">
+            <div id="lesson-progress-text" class="text-gray-700 font-medium mr-4 flex-shrink-0"></div>
+            <div class="progress-bar flex-grow">
+                <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <!-- Home Screen -->
+        <div id="home-screen" class="text-center">
+            <h1 class="text-4xl font-bold text-gray-800 mb-6">Learn Italian</h1>
+            <p class="text-lg text-gray-600 mb-8">Your journey to speaking Italian starts here!</p>
+            <button id="start-course-btn" class="btn btn-primary text-xl px-8 py-4">Start Learning</button>
+        </div>
+
+        <!-- Lesson Screen -->
+        <div id="lesson-screen" class="hidden">
+            <h2 id="lesson-title" class="text-3xl font-semibold text-gray-800 mb-4"></h2>
+            <p id="lesson-description" class="text-lg text-gray-700 mb-8"></p>
+            <div id="vocabulary-list" class="bg-gray-50 p-4 rounded-lg mb-6 shadow-inner">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">New Vocabulary:</h3>
+                <!-- Vocabulary items will be rendered here -->
+            </div>
+            <button id="continue-lesson-btn" class="btn btn-primary w-full">Start Exercises</button>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="question-screen" class="hidden">
+            <p id="question-text" class="text-2xl text-gray-800 font-medium mb-6"></p>
+            <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- Choices will be rendered here -->
+            </div>
+            <input type="text" id="answer-input" placeholder="Type your answer here..." class="hidden mb-6">
+
+            <!-- Speaking Exercise Controls -->
+            <div id="speaking-exercise-container" class="hidden">
+                <div id="speech-display" class="w-full text-gray-500">Press 'Start Speaking' to begin...</div>
+                <div id="speaking-controls">
+                    <button id="start-speaking-btn" class="btn btn-primary">Start Speaking 🎤</button>
+                    <p id="speech-status" class="text-sm text-gray-600 hidden">Listening...</p>
+                    <p id="no-speech-support-message" class="text-sm text-red-500 hidden">Speech recognition not supported in this browser.</p>
+                </div>
+            </div>
+
+            <div id="feedback-message" class="text-center text-lg font-semibold mt-4 hidden"></div>
+            <button id="check-answer-btn" class="btn btn-primary w-full mt-4">Check Answer</button>
+            <button id="next-question-btn" class="btn btn-secondary w-full mt-4 hidden">Next</button>
+        </div>
+
+        <!-- Course Complete Screen -->
+        <div id="course-complete-screen" class="hidden text-center">
+            <h2 class="text-4xl font-bold text-green-600 mb-6">Congratulations!</h2>
+            <p class="text-lg text-gray-700 mb-8">You have completed all the lessons in this course.</p>
+            <button id="restart-course-btn" class="btn btn-primary text-xl px-8 py-4">Restart Course</button>
+        </div>
+    </div>
+
+    <script>
+        // Define the course content
+        const courses = [
+            {
+                title: "Lesson 1: Basic Greetings 👋",
+                description: "Learn how to say hello, goodbye, and thank you.",
+                vocabulary: [
+                    { word: "Ciao", translation: "Hello / Goodbye" },
+                    { word: "Grazie", translation: "Thank you" },
+                    { word: "Prego", translation: "You're welcome / Please" },
+                    { word: "Arrivederci", translation: "Goodbye" }
+                ],
+                questions: [
+                    { type: "multiple-choice", text: "How do you say 'Hello' in Italian? 👋", choices: ["Ciao", "Grazie", "Prego", "Arrivederci"], correctAnswer: "Ciao" },
+                    { type: "multiple-choice", text: "What does 'Grazie' mean? 🙏", choices: ["Hello", "Thank you", "Please", "Goodbye"], correctAnswer: "Thank you" },
+                    { type: "translation-input", text: "Translate 'Please' into Italian:", correctAnswer: "Per favore" },
+                    { type: "speaking", text: "Say 'Goodbye' in Italian: 👋", correctAnswer: "Arrivederci" }
+                ]
+            },
+            {
+                title: "Lesson 2: Numbers 1-5 🔢",
+                description: "Learn to count from one to five.",
+                vocabulary: [
+                    { word: "Uno", translation: "One" },
+                    { word: "Due", translation: "Two" },
+                    { word: "Tre", translation: "Three" },
+                    { word: "Quattro", translation: "Four" },
+                    { word: "Cinque", translation: "Five" }
+                ],
+                questions: [
+                    { type: "multiple-choice", text: "What is 'One' in Italian? ☝️", choices: ["Due", "Uno", "Tre", "Quattro"], correctAnswer: "Uno" },
+                    { type: "speaking", text: "Say 'Two' in Italian: ✌️", correctAnswer: "Due" },
+                    { type: "translation-input", text: "Translate 'Three' into Italian:", correctAnswer: "Tre" },
+                    { type: "translation-input", text: "Translate 'Four' into Italian:", correctAnswer: "Quattro" },
+                    { type: "multiple-choice", text: "What is 'Cinque'? 🖐️", choices: ["Three", "Four", "Five", "Six"], correctAnswer: "Five" }
+                ]
+            },
+            {
+                title: "Lesson 3: Common Phrases 🗣️",
+                description: "Learn useful everyday phrases.",
+                vocabulary: [
+                    { word: "Sì", translation: "Yes" },
+                    { word: "No", translation: "No" },
+                    { word: "Scusi", translation: "Excuse me / Sorry (formal)" },
+                    { word: "Mi dispiace", translation: "I'm sorry" },
+                    { word: "Per favore", translation: "Please" }
+                ],
+                questions: [
+                    { type: "translation-input", text: "Translate 'Yes' into Italian: ✅", correctAnswer: "Sì" },
+                    { type: "speaking", text: "Say 'No' in Italian: ❌", correctAnswer: "No" },
+                    { type: "multiple-choice", text: "How do you say 'Excuse me' (formal)? 🙇", choices: ["Scusi", "Aiuto", "Acqua", "Pane"], correctAnswer: "Scusi" },
+                    { type: "multiple-choice", text: "What does 'Mi dispiace' mean? 😔", choices: ["I'm happy", "I'm sorry", "I'm hungry", "I'm tired"], correctAnswer: "I'm sorry" }
+                ]
+            }
+        ];
+
+        // Global state variables
+        let currentLessonIndex = 0;
+        let currentQuestionIndex = 0;
+        let userProgress = {}; // Stores completed lessons: { lessonIndex: true }
+        let selectedChoice = null; // For multiple-choice questions
+        let currentSpeechRecognition = null; // To hold the SpeechRecognition object
+
+        // Get DOM elements
+        const homeScreen = document.getElementById('home-screen');
+        const lessonScreen = document.getElementById('lesson-screen');
+        const questionScreen = document.getElementById('question-screen');
+        const courseCompleteScreen = document.getElementById('course-complete-screen');
+
+        const startCourseBtn = document.getElementById('start-course-btn');
+        const continueLessonBtn = document.getElementById('continue-lesson-btn');
+        const lessonTitle = document.getElementById('lesson-title');
+        const lessonDescription = document.getElementById('lesson-description');
+        const vocabularyList = document.getElementById('vocabulary-list');
+
+        const questionText = document.getElementById('question-text');
+        const choicesContainer = document.getElementById('choices-container');
+        const answerInput = document.getElementById('answer-input');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const checkAnswerBtn = document.getElementById('check-answer-btn');
+        const nextQuestionBtn = document.getElementById('next-question-btn');
+        const restartCourseBtn = document.getElementById('restart-course-btn');
+        const progressFill = document.getElementById('progress-fill');
+        const lessonProgressText = document.getElementById('lesson-progress-text');
+
+        // Speaking exercise elements
+        const speakingExerciseContainer = document.getElementById('speaking-exercise-container');
+        const speechDisplay = document.getElementById('speech-display');
+        const startSpeakingBtn = document.getElementById('start-speaking-btn');
+        const speechStatus = document.getElementById('speech-status');
+        const noSpeechSupportMessage = document.getElementById('no-speech-support-message');
+
+        // Fuzzy matching threshold (percentage of matching words)
+        const FUZZY_MATCH_THRESHOLD = 70; // 70% of words must match
+
+        // Positive feedback messages
+        const positiveFeedbackMessages = [
+            "Fantastic!",
+            "You got this!",
+            "Excellent!",
+            "Keep up the great work!",
+            "Perfect!"
+        ];
+
+        // Initialize Tone.js synthesizers for sound effects
+        const correctSynth = new Tone.Synth().toDestination();
+        const incorrectSynth = new Tone.Synth().toDestination();
+
+        /**
+         * Plays a short, pleasant sound for a correct answer.
+         */
+        function playCorrectSound() {
+            correctSynth.triggerAttackRelease("C5", "8n"); // Middle C
+        }
+
+        /**
+         * Plays a short, dissonant sound for an incorrect answer.
+         */
+        function playIncorrectSound() {
+            incorrectSynth.triggerAttackRelease("C3", "16n"); // Low C
+        }
+
+        /**
+         * Saves the current user progress to local storage.
+         */
+        function saveProgress() {
+            localStorage.setItem('italianCourseProgress', JSON.stringify(userProgress));
+            localStorage.setItem('italianCurrentLessonIndex', currentLessonIndex);
+            localStorage.setItem('italianCurrentQuestionIndex', currentQuestionIndex);
+        }
+
+        /**
+         * Loads user progress from local storage.
+         */
+        function loadProgress() {
+            const savedProgress = localStorage.getItem('italianCourseProgress');
+            const savedLessonIndex = localStorage.getItem('italianCurrentLessonIndex');
+            const savedQuestionIndex = localStorage.getItem('italianCurrentQuestionIndex');
+
+            if (savedProgress) {
+                userProgress = JSON.parse(savedProgress);
+            }
+            if (savedLessonIndex) {
+                currentLessonIndex = parseInt(savedLessonIndex, 10);
+            }
+            if (savedQuestionIndex) {
+                currentQuestionIndex = parseInt(savedQuestionIndex, 10);
+            }
+
+            updateProgressBar();
+        }
+
+        /**
+         * Updates the visual progress bar and the text indicating lesson/question progress.
+         */
+        function updateProgressBar() {
+            const totalLessons = courses.length;
+            const completedLessons = Object.keys(userProgress).length;
+            let progressPercentage = 0;
+
+            if (totalLessons > 0) {
+                 if (completedLessons === totalLessons) {
+                    progressPercentage = 100;
+                } else {
+                    progressPercentage = (completedLessons / totalLessons) * 100;
+                }
+            }
+            progressFill.style.width = `${progressPercentage}%`;
+
+            // Update textual lesson/question progress
+            if (currentLessonIndex < courses.length) {
+                const currentLesson = courses[currentLessonIndex];
+                const totalQuestionsInLesson = currentLesson.questions.length;
+                lessonProgressText.textContent = `Lesson ${currentLessonIndex + 1}/${totalLessons} - Question ${currentQuestionIndex + 1}/${totalQuestionsInLesson}`;
+            } else {
+                lessonProgressText.textContent = `Course Completed!`;
+            }
+        }
+
+        /**
+         * Shows the specified screen and hides all other main screens.
+         * @param {HTMLElement} screenToShow - The DOM element of the screen to display.
+         */
+        function showScreen(screenToShow) {
+            homeScreen.classList.add('hidden');
+            lessonScreen.classList.add('hidden');
+            questionScreen.classList.add('hidden');
+            courseCompleteScreen.classList.add('hidden');
+            screenToShow.classList.remove('hidden');
+            updateProgressBar(); // Ensure progress bar is updated when screen changes
+        }
+
+        /**
+         * Initiates the course, loading progress and displaying the appropriate screen.
+         */
+        function startCourse() {
+            loadProgress();
+            if (currentLessonIndex >= courses.length) {
+                showScreen(courseCompleteScreen);
+            } else {
+                showScreen(lessonScreen);
+                renderLesson();
+            }
+        }
+
+        /**
+         * Renders the current lesson details and vocabulary on the lesson screen.
+         */
+        function renderLesson() {
+            const lesson = courses[currentLessonIndex];
+            lessonTitle.textContent = lesson.title;
+            lessonDescription.textContent = lesson.description;
+            continueLessonBtn.textContent = `Start Exercises`;
+
+            // Clear previous vocabulary and render new one
+            vocabularyList.innerHTML = '<h3 class="text-xl font-semibold text-gray-700 mb-4">New Vocabulary:</h3>';
+            if (lesson.vocabulary && lesson.vocabulary.length > 0) {
+                lesson.vocabulary.forEach(item => {
+                    const vocabDiv = document.createElement('div');
+                    vocabDiv.classList.add('vocabulary-item');
+                    vocabDiv.innerHTML = `
+                        <span class="vocabulary-word">${item.word}</span>
+                        <span class="vocabulary-translation">${item.translation}</span>
+                    `;
+                    vocabularyList.appendChild(vocabDiv);
+                });
+            } else {
+                const noVocab = document.createElement('p');
+                noVocab.textContent = "No new vocabulary for this lesson.";
+                noVocab.classList.add('text-gray-500');
+                vocabularyList.appendChild(noVocab);
+            }
+
+            showScreen(lessonScreen);
+        }
+
+        /**
+         * Starts the current lesson by displaying the first question.
+         */
+        function startCurrentLesson() {
+            showScreen(questionScreen);
+            renderQuestion();
+        }
+
+        /**
+         * Renders the current question based on its type.
+         */
+        function renderQuestion() {
+            // Reset feedback and buttons
+            feedbackMessage.classList.add('hidden');
+            nextQuestionBtn.classList.add('hidden');
+            checkAnswerBtn.classList.remove('hidden');
+            answerInput.value = '';
+            selectedChoice = null; // Clear selected choice
+            speechDisplay.textContent = 'Press \'Start Speaking\' to begin...'; // Reset speech display
+            speechStatus.classList.add('hidden'); // Hide listening status
+            startSpeakingBtn.classList.remove('hidden'); // Show start speaking button
+            noSpeechSupportMessage.classList.add('hidden'); // Hide speech support message
+
+            // Hide all specific input/display areas first
+            choicesContainer.classList.add('hidden');
+            answerInput.classList.add('hidden');
+            speakingExerciseContainer.classList.add('hidden');
+
+            const lesson = courses[currentLessonIndex];
+            const question = lesson.questions[currentQuestionIndex];
+
+            questionText.textContent = question.text;
+
+            if (question.type === "multiple-choice") {
+                choicesContainer.classList.remove('hidden');
+                choicesContainer.innerHTML = ''; // Clear previous choices
+                question.choices.forEach(choice => {
+                    const choiceBtn = document.createElement('button');
+                    choiceBtn.classList.add('choice-btn');
+                    choiceBtn.textContent = choice;
+                    choiceBtn.dataset.choice = choice;
+                    choiceBtn.addEventListener('click', () => selectChoice(choiceBtn));
+                    choicesContainer.appendChild(choiceBtn);
+                });
+            } else if (question.type === "translation-input") {
+                answerInput.classList.remove('hidden');
+                answerInput.focus();
+            } else if (question.type === "speaking") {
+                speakingExerciseContainer.classList.remove('hidden');
+                // Check for SpeechRecognition API support
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    startSpeakingBtn.classList.add('hidden');
+                    noSpeechSupportMessage.classList.remove('hidden');
+                    speechDisplay.textContent = 'Cannot perform speaking exercise: Speech recognition is not supported.';
+                } else {
+                    noSpeechSupportMessage.classList.add('hidden');
+                }
+            }
+            updateProgressBar(); // Update text progress for the new question
+        }
+
+        /**
+         * Handles the selection of a multiple-choice answer.
+         * @param {HTMLElement} button - The button element that was clicked.
+         */
+        function selectChoice(button) {
+            document.querySelectorAll('.choice-btn').forEach(btn => {
+                btn.classList.remove('selected', 'correct', 'incorrect');
+            });
+            button.classList.add('selected');
+            selectedChoice = button.dataset.choice;
+        }
+
+        /**
+         * Compares two strings using a fuzzy matching algorithm.
+         * Returns true if the similarity is above the FUZZY_MATCH_THRESHOLD.
+         * @param {string} userAnswer - The user's input string.
+         * @param {string} correctAnswer - The correct answer string.
+         * @returns {boolean} True if the answers are a fuzzy match, false otherwise.
+         */
+        function compareAnswersFuzzy(userAnswer, correctAnswer) {
+            const userWords = userAnswer.toLowerCase().split(/\s+/).filter(word => word.length > 0);
+            const correctWords = correctAnswer.toLowerCase().split(/\s+/).filter(word => word.length > 0);
+
+            if (correctWords.length === 0) return true; // Avoid division by zero if correct answer is empty
+
+            let matchedWordsCount = 0;
+            const correctWordsSet = new Set(correctWords);
+
+            userWords.forEach(userWord => {
+                if (correctWordsSet.has(userWord)) {
+                    matchedWordsCount++;
+                }
+            });
+
+            // Calculate percentage of correct words found in the user's answer
+            const matchPercentage = (matchedWordsCount / correctWords.length) * 100;
+            return matchPercentage >= FUZZY_MATCH_THRESHOLD;
+        }
+
+        /**
+         * Checks the user's answer and provides feedback.
+         */
+        function checkAnswer() {
+            const lesson = courses[currentLessonIndex];
+            const question = lesson.questions[currentQuestionIndex];
+            let isCorrect = false;
+            let userAnswer = '';
+
+            if (question.type === "multiple-choice") {
+                userAnswer = selectedChoice;
+                isCorrect = (selectedChoice && selectedChoice.toLowerCase() === question.correctAnswer.toLowerCase());
+            } else if (question.type === "translation-input") {
+                userAnswer = answerInput.value.trim();
+                // Apply fuzzy matching for translation input
+                isCorrect = compareAnswersFuzzy(userAnswer, question.correctAnswer);
+            } else if (question.type === "speaking") {
+                userAnswer = speechDisplay.textContent.trim(); // Get transcribed text
+                // Apply fuzzy matching for speaking input
+                isCorrect = compareAnswersFuzz(userAnswer, question.correctAnswer);
+            }
+
+            // Prevent checking if no valid input for non-multiple-choice questions
+            // Only return if the input is empty AND it's NOT correct (meaning the user hasn't provided
+            // enough to be considered a fuzzy match or directly correct)
+            if ((question.type === "translation-input" || question.type === "speaking") && userAnswer === '' && !isCorrect) {
+                return;
+            }
+            if (question.type === "multiple-choice" && selectedChoice === null && !isCorrect) {
+                return;
+            }
+
+
+            feedbackMessage.classList.remove('hidden');
+            if (isCorrect) {
+                // Randomly select a positive feedback message
+                const randomMessage = positiveFeedbackMessages[Math.floor(Math.random() * positiveFeedbackMessages.length)];
+                feedbackMessage.textContent = randomMessage;
+                feedbackMessage.className = 'text-center text-lg font-semibold mt-4 text-green-600';
+                playCorrectSound();
+                if (question.type === "multiple-choice" && selectedChoice) {
+                    const selectedBtn = document.querySelector(`.choice-btn.selected`);
+                    if (selectedBtn) selectedBtn.classList.add('correct');
+                }
+            } else {
+                feedbackMessage.textContent = `Incorrect. The correct answer is: "${question.correctAnswer}"`;
+                feedbackMessage.className = 'text-center text-lg font-semibold mt-4 text-red-600';
+                playIncorrectSound();
+                if (question.type === "multiple-choice") {
+                    const selectedBtn = document.querySelector(`.choice-btn.selected`);
+                    if (selectedBtn) selectedBtn.classList.add('incorrect');
+                    document.querySelectorAll('.choice-btn').forEach(btn => {
+                        if (btn.dataset.choice.toLowerCase() === question.correctAnswer.toLowerCase()) {
+                            btn.classList.add('correct');
+                        }
+                    });
+                }
+            }
+
+            checkAnswerBtn.classList.add('hidden');
+            nextQuestionBtn.classList.remove('hidden');
+        }
+
+        /**
+         * Advances to the next question or lesson.
+         */
+        function nextQuestion() {
+            currentQuestionIndex++;
+            const lesson = courses[currentLessonIndex];
+
+            if (currentQuestionIndex < lesson.questions.length) {
+                renderQuestion();
+            } else {
+                // Current lesson completed
+                userProgress[currentLessonIndex] = true;
+                saveProgress();
+                updateProgressBar();
+                currentQuestionIndex = 0; // Reset question index for the next lesson
+                currentLessonIndex++; // Move to the next lesson
+
+                if (currentLessonIndex < courses.length) {
+                    renderLesson();
+                } else {
+                    // All lessons completed
+                    showScreen(courseCompleteScreen);
+                }
+            }
+        }
+
+        /**
+         * Resets the course progress and restarts from the beginning.
+         */
+        function restartCourse() {
+            currentLessonIndex = 0;
+            currentQuestionIndex = 0;
+            userProgress = {};
+            saveProgress();
+            updateProgressBar();
+            showScreen(homeScreen);
+        }
+
+        /**
+         * Starts the speech recognition process.
+         */
+        function startSpeaking() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                console.error("Speech Recognition API not supported in this browser.");
+                noSpeechSupportMessage.classList.remove('hidden');
+                return;
+            }
+
+            currentSpeechRecognition = new SpeechRecognition();
+            currentSpeechRecognition.lang = 'it-IT'; // Set language to Italian
+            currentSpeechRecognition.interimResults = false; // Only return final results
+            currentSpeechRecognition.maxAlternatives = 1; // Get the most probable result
+
+            speechDisplay.textContent = 'Listening...';
+            speechStatus.classList.remove('hidden');
+            startSpeakingBtn.classList.add('hidden'); // Hide the start button while listening
+
+            currentSpeechRecognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript;
+                speechDisplay.textContent = speechResult;
+                // Automatically check the answer after speech is recognized
+                checkAnswer();
+            };
+
+            currentSpeechRecognition.onspeechend = () => {
+                currentSpeechRecognition.stop();
+                speechStatus.classList.add('hidden');
+                startSpeakingBtn.classList.remove('hidden'); // Show button again
+            };
+
+            currentSpeechRecognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                speechDisplay.textContent = 'Error listening. Please try again.';
+                speechStatus.classList.add('hidden');
+                startSpeakingBtn.classList.remove('hidden'); // Show button again
+                if (event.error === 'not-allowed') {
+                    // This error indicates that the user has blocked microphone access
+                    // in their browser settings. The application cannot programmatically
+                    // grant this permission; the user must do it manually.
+                    speechDisplay.textContent = 'Microphone permission denied. Please enable it in browser settings.';
+                } else if (event.error === 'no-speech') {
+                    speechDisplay.textContent = 'No speech detected. Try again.';
+                }
+            };
+
+            currentSpeechRecognition.start();
+        }
+
+        // Event Listeners
+        startCourseBtn.addEventListener('click', () => {
+            // Initialize Tone.js audio context on user interaction to avoid browser autoplay policies
+            Tone.start();
+            startCourse();
+        });
+        continueLessonBtn.addEventListener('click', startCurrentLesson);
+        checkAnswerBtn.addEventListener('click', checkAnswer);
+        nextQuestionBtn.addEventListener('click', nextQuestion);
+        restartCourseBtn.addEventListener('click', restartCourse);
+        startSpeakingBtn.addEventListener('click', startSpeaking); // New event listener for speaking button
+
+        // Global keydown listener for "Enter" key
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                if (!checkAnswerBtn.classList.contains('hidden')) {
+                    checkAnswer();
+                } else if (!nextQuestionBtn.classList.contains('hidden')) {
+                    nextQuestion();
+                } else if (!startCourseBtn.classList.contains('hidden')) {
+                    startCourse();
+                } else if (!continueLessonBtn.classList.contains('hidden')) {
+                    startCurrentLesson();
+                } else if (!restartCourseBtn.classList.contains('hidden')) {
+                    restartCourse();
+                }
+            }
+        });
+
+        // Initial Load: Determines which screen to show on page load based on saved progress.
+        loadProgress();
+        if (currentLessonIndex === 0 && currentQuestionIndex === 0 && Object.keys(userProgress).length === 0) {
+            showScreen(homeScreen);
+        } else if (currentLessonIndex >= courses.length) {
+            showScreen(courseCompleteScreen);
+        } else {
+            showScreen(lessonScreen);
+            renderLesson();
+        }
+    </script>
+</body>
+</html>
