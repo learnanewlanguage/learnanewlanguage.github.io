@@ -8,7 +8,329 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Tone.js for sound effects -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <!-- Firebase SDKs -->
+    <style>
+        /* Global box-sizing for consistent layout behavior */
+        html {
+            box-sizing: border-box;
+        }
+        *, *::before, *::after {
+            box-sizing: inherit;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #eef2f6; /* Lighter blue-grey background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem; /* Keeps a general margin around the main container */
+            overflow-x: hidden; /* Prevents horizontal scrolling on small screens */
+        }
+        .container-wrapper {
+            /* This div acts as the primary container, centered and responsive */
+            background-color: #ffffff;
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1); /* Deeper shadow */
+            max-width: 900px; /* Increased max-width */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        /* Tailwind's padding classes will be applied directly to #app-container */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem; /* Rounded button corners */
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative; /* For button effects */
+            overflow: hidden; /* For ripple effect */
+        }
+        .btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #4CAF50; /* Duolingo green */
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background-color: #f9fafb; /* Lighter secondary button */
+            color: #4a5568;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-secondary:hover {
+            background-color: #edf2f7;
+            transform: translateY(-2px);
+        }
+        .choice-btn {
+            width: 100%;
+            display: flex;
+            align-items: center; /* Align number and text vertically */
+            padding: 1rem;
+            border-radius: 0.75rem;
+            border: 2px solid #e2e8f0; /* Lighter border */
+            background-color: #ffffff; /* White background for choices */
+            font-size: 1.125rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+        }
+        .choice-btn .choice-number {
+            margin-right: 0.75rem; /* Space between number and text */
+            font-weight: 700;
+            color: #888;
+            min-width: 1.5rem; /* Ensure consistent spacing for numbers */
+            text-align: center;
+            background-color: #f0f4f8; /* Light background for number */
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.5rem;
+        }
+        .choice-btn:hover {
+            background-color: #f5f8fb; /* Very light hover background */
+            border-color: #a0aec0; /* Slightly darker border on hover */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .choice-btn.selected {
+            background-color: #e6f7ff; /* Light blue for selected */
+            border-color: #3b82f6; /* Blue border for selected (Tailwind blue-500) */
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+        }
+        .choice-btn.correct {
+            background-color: #d4edda; /* Light green for correct */
+            border-color: #22c55e; /* Tailwind green-500 */
+            color: #155724;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+        }
+        .choice-btn.incorrect {
+            background-color: #fce7e7; /* Light red for incorrect */
+            border-color: #ef4444; /* Tailwind red-500 */
+            color: #721c24;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            width: 100%;
+            font-size: 1.125rem;
+            background-color: #fdfdfe; /* Slightly off-white background */
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #3b82f6; /* Blue border on focus */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* Blue ring on focus */
+        }
+        .progress-bar {
+            height: 0.75rem;
+            background-color: #e2e8f0; /* Lighter background */
+            border-radius: 0.375rem;
+            overflow: hidden;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); /* Inner shadow */
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 0.375rem;
+            transition: width 0.3s ease-in-out;
+        }
+        .vocabulary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e2e8f0; /* Lighter separator */
+            font-size: 1.125rem;
+        }
+        .vocabulary-item:last-child {
+            border-bottom: none;
+        }
+        .vocabulary-word {
+            font-weight: 600;
+            color: #333;
+        }
+        .vocabulary-translation {
+            color: #555;
+            font-style: italic;
+        }
+        #speech-display {
+            background-color: #f8fafc; /* Very light background */
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1.25rem; /* More padding */
+            min-height: 80px; /* Taller */
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem; /* Larger text */
+            font-weight: 500;
+            color: #4a5568;
+            margin-bottom: 1rem;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+            word-break: break-word; /* Ensure long words break */
+        }
+        #speaking-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .skip-btn {
+            background-color: #cbd5e0; /* Light grey */
+            color: #4a5568;
+            border: 1px solid #a0aec0;
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            margin-top: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+        .skip-btn:hover {
+            background-color: #a0aec0;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+        /* Auth status box styling */
+        .auth-info-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem; /* Consistent rounding */
+            padding: 1.25rem; /* More padding */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            display: flex; /* Make it a flex container */
+            align-items: center; /* Vertically align items */
+            justify-content: space-between; /* Space items out */
+        }
+        .auth-info-box.flex-col { /* For mobile/small screens */
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .auth-info-box .info-text {
+            flex-grow: 1; /* Allows text to take up available space */
+        }
+        @media (min-width: 768px) { /* md breakpoint */
+            .auth-info-box.flex-col {
+                flex-direction: row;
+                align-items: center;
+                text-align: left;
+            }
+            .auth-info-box .info-text {
+                margin-right: 1rem; /* Space between text and button on desktop */
+            }
+        }
+    </style>
+</head>
+<body class="selection:bg-green-200 selection:text-green-800">
+    <!-- Main application container with responsive padding -->
+    <div id="app-container" class="container-wrapper p-4 sm:p-8 md:p-10">
+
+        <!-- Authentication UI Area -->
+        <div class="mb-4">
+            <!-- Guest Prompt Banner (shown for anonymous users) -->
+            <div id="guest-prompt-banner" class="auth-info-box bg-yellow-100 flex-col text-yellow-800 hidden">
+                <p class="font-semibold info-text mb-2 md:mb-0">Create an account or login to continue on any device!</p>
+                <!-- This button now links directly to account.html -->
+                <button id="continue-to-account-btn" class="btn btn-primary text-sm px-4 py-2 w-full md:w-auto" onclick="window.location.href='account.html'">Continue</button>
+            </div>
+
+            <!-- Signed-in User Info (shown for authenticated users) -->
+            <div id="signed-in-info" class="auth-info-box bg-gray-50 flex-col text-sm text-gray-600 hidden">
+                <div class="flex flex-col info-text mb-2 md:mb-0">
+                    <span id="auth-status-span" class="font-semibold text-gray-800 mb-1">Loading authentication status...</span>
+                    <span id="user-id-display-span" class="text-gray-600 text-xs break-all">Loading User ID...</span>
+                </div>
+                <button id="signout-btn" class="btn btn-secondary text-sm mt-4 md:mt-0 w-full md:w-auto" onclick="signOutUser()">Sign Out</button>
+            </div>
+
+            <!-- Authentication Controls (Email/Password inputs + Sign Up/In buttons - always hidden on this page) -->
+            <div id="auth-controls" class="hidden">
+                <!-- These inputs are now entirely removed from this page's visible flow -->
+                <!-- They would reside on your dedicated account.html page -->
+                <input type="email" id="email-input" placeholder="Email">
+                <input type="password" id="password-input" placeholder="Password">
+                <button id="signup-email-btn" class="btn btn-primary text-sm">Sign Up</button>
+                <button id="signin-email-btn" class="btn btn-secondary text-sm">Sign In</button>
+            </div>
+            <!-- Authentication Error Message -->
+            <div id="auth-error-message" class="hidden text-center text-red-500 font-medium text-sm mt-2 bg-red-50 p-2 rounded-lg border border-red-200"></div>
+        </div>
+
+
+        <!-- Progress Info and Bar -->
+        <div class="flex items-center mb-4 pt-2">
+            <div id="lesson-progress-text" class="text-gray-700 font-medium mr-4 flex-shrink-0 text-sm sm:text-base"></div>
+            <div class="progress-bar flex-grow">
+                <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <!-- Home Screen -->
+        <div id="home-screen" class="text-center p-6">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">Learn Italian 🇮🇹</h1>
+            <p class="text-lg md:text-xl text-gray-600 mb-8">Your journey to speaking Italian starts here with fun and interactive lessons!</p>
+            <button id="start-course-btn" class="btn btn-primary text-xl px-10 py-4" onclick="startCourse()">Start Learning</button>
+        </div>
+
+        <!-- Lesson Screen -->
+        <div id="lesson-screen" class="hidden p-6">
+            <h2 id="lesson-title" class="text-3xl font-semibold text-gray-800 mb-4"></h2>
+            <p id="lesson-description" class="text-lg text-gray-700 mb-8"></p>
+            <div id="vocabulary-list" class="bg-gray-50 p-4 sm:p-6 rounded-xl mb-6 shadow-inner border border-gray-100">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">New Vocabulary:</h3>
+                <!-- Vocabulary items will be rendered here -->
+            </div>
+            <button id="continue-lesson-btn" class="btn btn-primary w-full" onclick="startCurrentLesson()">Start Exercises</button>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="question-screen" class="hidden p-6">
+            <p id="question-text" class="text-2xl font-semibold text-gray-800 mb-6"></p>
+            <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- Choices will be rendered here -->
+            </div>
+            <input type="text" id="answer-input" placeholder="Type your answer here..." class="hidden mb-6">
+
+            <!-- Speaking Exercise Controls -->
+            <div id="speaking-exercise-container" class="hidden flex flex-col items-center">
+                <div id="speech-display" class="w-full text-gray-500">Press 'Start Speaking' to begin...</div>
+                <div id="speaking-controls" class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 mt-4">
+                    <button id="start-speaking-btn" class="btn btn-primary text-lg" onclick="startSpeaking()">Start Speaking 🎤</button>
+                    <p id="speech-status" class="text-sm text-gray-600 hidden self-center">Listening...</p>
+                </div>
+                <p id="no-speech-support-message" class="text-sm text-red-500 mt-2 hidden">Speech recognition not supported in this browser.</p>
+                <button id="skip-speaking-btn" class="skip-btn hidden" onclick="nextQuestion()">Skip Exercise</button>
+            </div>
+
+            <div id="feedback-message" class="text-center text-lg font-semibold mt-4 hidden"></div>
+            <button id="check-answer-btn" class="btn btn-primary w-full mt-4" onclick="checkAnswer()">Check Answer</button>
+            <button id="next-question-btn" class="btn btn-secondary w-full mt-4 hidden" onclick="nextQuestion()">Next</button>
+        </div>
+
+        <!-- Course Complete Screen -->
+        <div id="course-complete-screen" class="hidden text-center p-6">
+            <h2 class="text-4xl md:text-5xl font-bold text-green-600 mb-6">Congratulations! 🎉</h2>
+            <p class="text-lg md:text-xl text-gray-700 mb-8">You have completed all the lessons in this course. Fantastico!</p>
+            <button id="restart-course-btn" class="btn btn-primary text-xl px-8 py-4" onclick="restartCourse()">Restart Course</button>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -18,11 +340,11 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 
-        // Initialize Firebase
-        let app;
-        let db;
-        let auth;
-        let userId; // Will hold the current user's ID
+        // Initialize Firebase variables to null, they will be assigned if config is present
+        let app = null;
+        let db = null;
+        let auth = null;
+        let userId = crypto.randomUUID(); // Default to a random ID for unauthenticated state
         let isAuthReady = false; // Flag to indicate if auth state has been determined
 
         // Store references to global functions for use in inline event handlers
@@ -32,11 +354,12 @@
         window.nextQuestion = nextQuestion;
         window.restartCourse = restartCourse;
         window.startSpeaking = startSpeaking;
-        window.signUpWithEmail = signUpWithEmail; // New function for email sign-up
-        window.signInWithEmail = signInWithEmail; // New function for email sign-in
+        window.signUpWithEmail = signUpWithEmail; // These are not used on this page's UI anymore but kept for potential external calls
+        window.signInWithEmail = signInWithEmail; // These are not used on this page's UI anymore but kept for potential external calls
         window.signOutUser = signOutUser;
+        // window.dismissGuestPrompt = dismissGuestPrompt; // No longer needed as button redirects
 
-        // Function to display authentication errors
+        // Function to display authentication errors (still useful for Firebase errors)
         function displayAuthError(message) {
             const authErrorMessage = document.getElementById('auth-error-message');
             if (authErrorMessage) {
@@ -49,142 +372,150 @@
             }
         }
 
-        // Ensure Firebase app is only initialized once
+        // Main Firebase initialization logic
         if (Object.keys(firebaseConfig).length > 0) {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
 
-            // Listen for authentication state changes
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                    const userIdDisplay = document.getElementById('user-id-display');
-                    const authStatus = document.getElementById('auth-status');
-                    const authControls = document.getElementById('auth-controls');
-                    const signoutBtn = document.getElementById('signout-btn');
-
-                    if (userIdDisplay) userIdDisplay.textContent = `User ID: ${userId}`;
-                    if (authStatus) authStatus.textContent = `Signed in as: ${user.isAnonymous ? 'Anonymous' : user.email || 'User'}`; // Display email for non-anonymous
-                    if (authControls) authControls.classList.add('hidden'); // Hide email input and sign-in/up buttons
-                    if (signoutBtn) signoutBtn.classList.remove('hidden');
-
-
-                    // Attempt to load or migrate progress
-                    await loadProgress();
-                    // If no progress loaded from Firestore, check localStorage for old progress
-                    if (Object.keys(userProgress).length === 0 && localStorage.getItem('italianCourseProgress')) {
-                        console.log("Migrating local storage progress to Firestore...");
-                        const localProgress = JSON.parse(localStorage.getItem('italianCourseProgress'));
-                        const localLessonIndex = parseInt(localStorage.getItem('italianCurrentLessonIndex'), 10);
-                        const localQuestionIndex = parseInt(localStorage.getItem('italianCurrentQuestionIndex'), 10);
-
-                        userProgress = localProgress;
-                        currentLessonIndex = localLessonIndex;
-                        currentQuestionIndex = localQuestionIndex;
-                        await saveProgress();
-                        localStorage.removeItem('italianCourseProgress');
-                        localStorage.removeItem('italianCurrentLessonIndex');
-                        localStorage.removeItem('italianCurrentQuestionIndex');
-                        console.log("Local storage progress migrated to Firestore.");
-                    }
-                } else {
-                    // User is signed out or no user is signed in.
-                    userId = crypto.randomUUID();
-                    const userIdDisplay = document.getElementById('user-id-display');
-                    const authStatus = document.getElementById('auth-status');
-                    const authControls = document.getElementById('auth-controls');
-                    const signoutBtn = document.getElementById('signout-btn');
-
-                    if (userIdDisplay) userIdDisplay.textContent = `User ID: Not signed in`;
-                    if (authStatus) authStatus.textContent = 'Signed out';
-                    if (authControls) authControls.classList.remove('hidden'); // Show email input and sign-in/up buttons
-                    if (signoutBtn) signoutBtn.classList.add('hidden');
-                    console.log("User is signed out or anonymous session expired.");
-
-                    if (!isAuthReady) {
-                        await signInAnonymously(auth).catch((error) => {
-                            console.error("Anonymous sign-in error:", error);
-                            displayAuthError(error.message);
+                // Initial sign-in with custom token if available (for Canvas environment)
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (initialAuthToken) {
+                    try {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } catch (error) {
+                        console.error("Custom token sign-in error:", error);
+                        displayAuthError(error.message);
+                        await signInAnonymously(auth).catch(anonError => {
+                            console.error("Fallback anonymous sign-in error:", anonError);
+                            displayAuthError(anonError.message);
                         });
                     }
-                    userProgress = {};
-                    currentLessonIndex = 0;
-                    currentQuestionIndex = 0;
+                } else if (!auth.currentUser) {
+                    await signInAnonymously(auth).catch((error) => {
+                        console.error("Anonymous sign-in on initial load error:", error);
+                        displayAuthError(error.message);
+                    });
                 }
+
+                // Listen for authentication state changes
+                onAuthStateChanged(auth, async (user) => {
+                    const userIdDisplay = document.getElementById('user-id-display-span');
+                    const authStatus = document.getElementById('auth-status-span');
+                    const guestPromptBanner = document.getElementById('guest-prompt-banner');
+                    const signedInInfo = document.getElementById('signed-in-info');
+                    const authControls = document.getElementById('auth-controls'); // This should now always be hidden
+
+                    // Always hide auth-controls on this page regardless of user state
+                    if (authControls) authControls.classList.add('hidden');
+
+                    if (user) {
+                        userId = user.uid;
+                        if (user.isAnonymous) {
+                            // Anonymous User: Show guest banner
+                            if (guestPromptBanner) guestPromptBanner.classList.remove('hidden');
+                            if (signedInInfo) signedInInfo.classList.add('hidden'); // Ensure signed-in info is hidden
+                            if (authStatus) authStatus.textContent = 'Signed in as: Guest (anonymous)';
+                            if (userIdDisplay) userIdDisplay.textContent = `User ID: ${userId}`;
+                        } else {
+                            // Authenticated User: Show signed-in info
+                            if (signedInInfo) signedInInfo.classList.remove('hidden');
+                            if (guestPromptBanner) guestPromptBanner.classList.add('hidden'); // Ensure guest banner is hidden
+                            if (authStatus) authStatus.textContent = `Signed in as: ${user.email || 'User'}`;
+                            if (userIdDisplay) userIdDisplay.textContent = `User ID: ${userId}`;
+                        }
+                        await loadProgress();
+                        if (Object.keys(userProgress).length === 0 && localStorage.getItem('italianCourseProgress')) {
+                            console.log("Migrating local storage progress to Firestore...");
+                            const localProgress = JSON.parse(localStorage.getItem('italianCourseProgress'));
+                            const localLessonIndex = parseInt(localStorage.getItem('italianCurrentLessonIndex'), 10);
+                            const localQuestionIndex = parseInt(localStorage.getItem('italianCurrentQuestionIndex'), 10);
+
+                            userProgress = localProgress;
+                            currentLessonIndex = localLessonIndex;
+                            currentQuestionIndex = localQuestionIndex;
+                            await saveProgress();
+                            localStorage.removeItem('italianCourseProgress');
+                            localStorage.removeItem('italianCurrentLessonIndex');
+                            localStorage.removeItem('italianCurrentQuestionIndex');
+                            console.log("Local storage progress migrated to Firestore.");
+                        }
+                    } else {
+                        // No user or signed out. Default to showing guest prompt.
+                        userId = crypto.randomUUID();
+                        if (guestPromptBanner) guestPromptBanner.classList.remove('hidden');
+                        if (signedInInfo) signedInInfo.classList.add('hidden');
+                        if (authStatus) authStatus.textContent = 'Signed out (Guest)';
+                        if (userIdDisplay) userIdDisplay.textContent = `User ID: Not signed in`;
+
+                        userProgress = {};
+                        currentLessonIndex = 0;
+                        currentQuestionIndex = 0;
+
+                        if (auth && !isAuthReady) {
+                            await signInAnonymously(auth).catch((error) => {
+                                console.error("Anonymous sign-in on initial load error:", error);
+                                displayAuthError(error.message);
+                            });
+                        }
+                    }
+                    isAuthReady = true;
+                    if (currentLessonIndex >= courses.length) {
+                        showScreen(courseCompleteScreen);
+                    } else if (currentLessonIndex === 0 && currentQuestionIndex === 0 && Object.keys(userProgress).length === 0) {
+                        showScreen(homeScreen);
+                    } else {
+                        showScreen(lessonScreen);
+                        renderLesson();
+                    }
+                });
+
+            } catch (initError) {
+                console.error("Firebase initialization failed:", initError);
+                displayAuthError("Firebase setup error. Check console for details.");
                 isAuthReady = true;
-                if (currentLessonIndex === 0 && currentQuestionIndex === 0 && Object.keys(userProgress).length === 0) {
-                    showScreen(homeScreen);
-                } else if (currentLessonIndex >= courses.length) {
+                loadProgress();
+                if (currentLessonIndex >= courses.length) {
                     showScreen(courseCompleteScreen);
+                } else if (currentLessonIndex === 0 && currentQuestionIndex === 0 && Object.keys(userProgress).length === 0) {
+                    showScreen(homeScreen);
                 } else {
                     showScreen(lessonScreen);
                     renderLesson();
                 }
-            });
-
-            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            if (initialAuthToken) {
-                try {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } catch (error) {
-                    console.error("Custom token sign-in error:", error);
-                    displayAuthError(error.message);
-                }
-            } else if (!auth.currentUser) {
-                await signInAnonymously(auth).catch((error) => {
-                    console.error("Anonymous sign-in on initial load error:", error);
-                    displayAuthError(error.message);
-                });
             }
         } else {
             console.warn("Firebase config not found. Running in local-only mode. Progress will NOT be saved persistently.");
             isAuthReady = true;
             loadProgress();
-            if (currentLessonIndex === 0 && currentQuestionIndex === 0 && Object.keys(userProgress).length === 0) {
-                showScreen(homeScreen);
-            } else if (currentLessonIndex >= courses.length) {
+            if (currentLessonIndex >= courses.length) {
                 showScreen(courseCompleteScreen);
+            } else if (currentLessonIndex === 0 && currentQuestionIndex === 0 && Object.keys(userProgress).length === 0) {
+                showScreen(homeScreen);
             } else {
                 showScreen(lessonScreen);
                 renderLesson();
             }
         }
 
-        // Email/Password Authentication Functions
+        // Email/Password Authentication Functions (These are now unused by this page's UI but kept for reference)
         async function signUpWithEmail() {
-            const email = document.getElementById('email-input').value;
-            const password = document.getElementById('password-input').value;
-            if (!email || !password) {
-                displayAuthError("Please enter both email and password.");
-                return;
-            }
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                console.log("User signed up with email!");
-            } catch (error) {
-                console.error("Email sign-up error:", error);
-                displayAuthError(error.message);
-            }
+            console.log("Sign up functionality moved to account.html");
+            displayAuthError("Please go to the 'Account' page to sign up.");
         }
 
         async function signInWithEmail() {
-            const email = document.getElementById('email-input').value;
-            const password = document.getElementById('password-input').value;
-            if (!email || !password) {
-                displayAuthError("Please enter both email and password.");
-                return;
-            }
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                console.log("User signed in with email!");
-            } catch (error) {
-                console.error("Email sign-in error:", error);
-                displayAuthError(error.message);
-            }
+            console.log("Sign in functionality moved to account.html");
+            displayAuthError("Please go to the 'Account' page to sign in.");
         }
 
         async function signOutUser() {
+            if (!auth) {
+                displayAuthError("Firebase authentication not initialized.");
+                return;
+            }
             try {
                 await signOut(auth);
                 console.log("User signed out.");
@@ -302,8 +633,8 @@
         }
 
         async function saveProgress() {
-            if (!db || !userId || !auth.currentUser) {
-                console.warn("Firestore or user not ready. Progress not saved to cloud.");
+            if (!auth || !db || !auth.currentUser?.uid) {
+                console.warn("Firestore or authenticated user not ready. Progress not saved to cloud.");
                 localStorage.setItem('italianCourseProgress', JSON.stringify(userProgress));
                 localStorage.setItem('italianCurrentLessonIndex', currentLessonIndex);
                 localStorage.setItem('italianCurrentQuestionIndex', currentQuestionIndex);
@@ -328,8 +659,8 @@
         }
 
         async function loadProgress() {
-            if (!db || !userId || !auth.currentUser) {
-                console.warn("Firestore or user not ready. Loading progress from localStorage.");
+            if (!auth || !db || !auth.currentUser?.uid) {
+                console.warn("Firestore or authenticated user not ready. Loading progress from localStorage.");
                 const savedProgress = localStorage.getItem('italianCourseProgress');
                 const savedLessonIndex = localStorage.getItem('italianCurrentLessonIndex');
                 const savedQuestionIndex = localStorage.getItem('italianCurrentQuestionIndex');
@@ -675,11 +1006,6 @@
                     startCurrentLesson();
                 } else if (!restartCourseBtn.classList.contains('hidden')) {
                     restartCourse();
-                } else if (document.activeElement === document.getElementById('email-input') || document.activeElement === document.getElementById('password-input')) {
-                     // If focus is on email/password inputs, attempt sign-in by default
-                    if (document.activeElement === document.getElementById('password-input') && !document.getElementById('auth-controls').classList.contains('hidden')) {
-                        signInWithEmail();
-                    }
                 }
             } else if (event.key >= '1' && event.key <= '4') {
                 if (!questionScreen.classList.contains('hidden')) {
@@ -699,83 +1025,5 @@
         });
 
     </script>
-</head>
-<body class="selection:bg-green-200 selection:text-green-800">
-    <!-- Main application container with responsive padding -->
-    <div id="app-container" class="container-wrapper p-4 sm:p-8">
-
-        <!-- User Authentication Status -->
-        <div class="flex flex-col md:flex-row justify-between items-center text-sm text-gray-600 mb-4 p-2 bg-gray-50 rounded-lg shadow-sm">
-            <span id="auth-status" class="mb-2 md:mb-0">Loading authentication status...</span>
-            <span id="user-id-display" class="mb-2 md:mb-0">Loading User ID...</span>
-            <div id="auth-controls" class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 w-full md:w-auto mt-4 md:mt-0">
-                <input type="email" id="email-input" placeholder="Email" class="p-2 border rounded-md text-gray-800 w-full md:w-auto">
-                <input type="password" id="password-input" placeholder="Password" class="p-2 border rounded-md text-gray-800 w-full md:w-auto">
-                <button id="signup-email-btn" class="btn btn-primary text-sm w-full md:w-auto" onclick="signUpWithEmail()">Sign Up</button>
-                <button id="signin-email-btn" class="btn btn-secondary text-sm w-full md:w-auto" onclick="signInWithEmail()">Sign In</button>
-            </div>
-            <button id="signout-btn" class="btn btn-secondary text-sm hidden mt-4 md:mt-0 w-full md:w-auto" onclick="signOutUser()">Sign Out</button>
-        </div>
-        <!-- Authentication Error Message -->
-        <div id="auth-error-message" class="hidden text-center text-red-500 text-sm mb-4"></div>
-
-
-        <!-- Progress Info and Bar -->
-        <div class="flex items-center mb-4">
-            <div id="lesson-progress-text" class="text-gray-700 font-medium mr-4 flex-shrink-0"></div>
-            <div class="progress-bar flex-grow">
-                <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
-            </div>
-        </div>
-
-        <!-- Home Screen -->
-        <div id="home-screen" class="text-center">
-            <h1 class="text-4xl font-bold text-gray-800 mb-6">Learn Italian</h1>
-            <p class="text-lg text-gray-600 mb-8">Your journey to speaking Italian starts here!</p>
-            <button id="start-course-btn" class="btn btn-primary text-xl px-8 py-4" onclick="startCourse()">Start Learning</button>
-        </div>
-
-        <!-- Lesson Screen -->
-        <div id="lesson-screen" class="hidden">
-            <h2 id="lesson-title" class="text-3xl font-semibold text-gray-800 mb-4"></h2>
-            <p id="lesson-description" class="text-lg text-gray-700 mb-8"></p>
-            <div id="vocabulary-list" class="bg-gray-50 p-4 rounded-lg mb-6 shadow-inner">
-                <h3 class="text-xl font-semibold text-gray-700 mb-4">New Vocabulary:</h3>
-                <!-- Vocabulary items will be rendered here -->
-            </div>
-            <button id="continue-lesson-btn" class="btn btn-primary w-full" onclick="startCurrentLesson()">Start Exercises</button>
-        </div>
-
-        <!-- Question Screen -->
-        <div id="question-screen" class="hidden">
-            <p id="question-text" class="text-2xl text-gray-800 font-medium mb-6"></p>
-            <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <!-- Choices will be rendered here -->
-            </div>
-            <input type="text" id="answer-input" placeholder="Type your answer here..." class="hidden mb-6">
-
-            <!-- Speaking Exercise Controls -->
-            <div id="speaking-exercise-container" class="hidden">
-                <div id="speech-display" class="w-full text-gray-500">Press 'Start Speaking' to begin...</div>
-                <div id="speaking-controls">
-                    <button id="start-speaking-btn" class="btn btn-primary" onclick="startSpeaking()">Start Speaking 🎤</button>
-                    <p id="speech-status" class="text-sm text-gray-600 hidden">Listening...</p>
-                    <p id="no-speech-support-message" class="text-sm text-red-500 hidden">Speech recognition not supported in this browser.</p>
-                </div>
-                <button id="skip-speaking-btn" class="skip-btn hidden" onclick="nextQuestion()">Skip Exercise</button>
-            </div>
-
-            <div id="feedback-message" class="text-center text-lg font-semibold mt-4 hidden"></div>
-            <button id="check-answer-btn" class="btn btn-primary w-full mt-4" onclick="checkAnswer()">Check Answer</button>
-            <button id="next-question-btn" class="btn btn-secondary w-full mt-4 hidden" onclick="nextQuestion()">Next</button>
-        </div>
-
-        <!-- Course Complete Screen -->
-        <div id="course-complete-screen" class="hidden text-center">
-            <h2 class="text-4xl font-bold text-green-600 mb-6">Congratulations!</h2>
-            <p class="text-lg text-gray-700 mb-8">You have completed all the lessons in this course.</p>
-            <button id="restart-course-btn" class="btn btn-primary text-xl px-8 py-4" onclick="restartCourse()">Restart Course</button>
-        </div>
-    </div>
 </body>
 </html>
