@@ -340,6 +340,69 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 
+        // Course data and constants - MOVED TO TOP FOR PROPER INITIALIZATION
+        const courses = [
+            {
+                title: "Lesson 1: Basic Greetings 👋",
+                description: "Learn how to say hello, goodbye, and thank you.",
+                vocabulary: [
+                    { word: "Ciao", translation: "Hello / Goodbye" },
+                    { word: "Grazie", translation: "Thank you" },
+                    { word: "Prego", translation: "You're welcome / Please" },
+                    { word: "Arrivederci", translation: "Goodbye" }
+                ],
+                questions: [
+                    { type: "multiple-choice", text: "How do you say 'Hello' in Italian? 👋", choices: ["Ciao", "Grazie", "Prego", "Arrivederci"], correctAnswer: "Ciao" },
+                    { type: "multiple-choice", text: "What does 'Grazie' mean? 🙏", choices: ["Hello", "Thank you", "Please", "Goodbye"], correctAnswer: "Thank you" },
+                    { type: "translation-input", text: "Translate 'Please' into Italian:", correctAnswer: "Per favore" },
+                    { type: "speaking", text: "Say 'Goodbye' in Italian: 👋", correctAnswer: "Arrivederci" }
+                ]
+            },
+            {
+                title: "Lesson 2: Numbers 1-5 🔢",
+                description: "Learn to count from one to five.",
+                vocabulary: [
+                    { word: "Uno", translation: "One" },
+                    { word: "Due", translation: "Two" },
+                    { word: "Tre", translation: "Three" },
+                    { word: "Quattro", translation: "Four" },
+                    { word: "Cinque", translation: "Five" }
+                ],
+                questions: [
+                    { type: "multiple-choice", text: "What is 'One' in Italian? ☝️", choices: ["Due", "Uno", "Tre", "Quattro"], correctAnswer: "Uno" },
+                    { type: "speaking", text: "Say 'Two' in Italian:✌️", correctAnswer: "Due" },
+                    { type: "translation-input", text: "Translate 'Three' into Italian:", correctAnswer: "Tre" },
+                    { type: "translation-input", text: "Translate 'Four' into Italian:", correctAnswer: "Quattro" },
+                    { type: "multiple-choice", text: "What is 'Cinque'? 🖐️", choices: ["Three", "Four", "Five", "Six"], correctAnswer: "Five" }
+                ]
+            },
+            {
+                title: "Lesson 3: Common Phrases 🗣️",
+                description: "Learn useful everyday phrases.",
+                vocabulary: [
+                    { word: "Sì", translation: "Yes" },
+                    { word: "No", translation: "No" },
+                    { word: "Scusi", translation: "Excuse me / Sorry (formal)" },
+                    { word: "Mi dispiace", translation: "I'm sorry" },
+                    { word: "Per favore", translation: "Please" }
+                ],
+                questions: [
+                    { type: "translation-input", text: "Translate 'Yes' into Italian: ✅", correctAnswer: "Sì" },
+                    { type: "speaking", text: "Say 'No' in Italian:❌", correctAnswer: "No" },
+                    { type: "multiple-choice", text: "How do you say 'Excuse me' (formal)? 🙇", choices: ["Scusi", "Aiuto", "Acqua", "Pane"], correctAnswer: "Scusi" },
+                    { type: "multiple-choice", text: "What does 'Mi dispiace' mean? 😔", choices: ["I'm happy", "I'm sorry", "I'm hungry", "I'm tired"], correctAnswer: "I'm sorry" }
+                ]
+            }
+        ];
+
+        const FUZZY_MATCH_THRESHOLD = 70;
+        const positiveFeedbackMessages = [
+            "Fantastic!", "You got this!", "Excellent!", "Keep up the great work!", "Perfect!"
+        ];
+        const correctSynth = new Tone.Synth().toDestination();
+        const incorrectSynth = new Tone.Synth().toDestination();
+
+
         // Initialize Firebase variables to null, they will be assigned if config is present
         let app = null;
         let db = null;
@@ -357,7 +420,6 @@
         window.signUpWithEmail = signUpWithEmail; // These are not used on this page's UI anymore but kept for potential external calls
         window.signInWithEmail = signInWithEmail; // These are not used on this page's UI anymore but kept for potential external calls
         window.signOutUser = signOutUser;
-        // window.dismissGuestPrompt = dismissGuestPrompt; // No longer needed as button redirects
 
         // Function to display authentication errors (still useful for Firebase errors)
         function displayAuthError(message) {
@@ -525,62 +587,6 @@
             }
         }
 
-        // The rest of your existing JavaScript code (courses array, game logic functions)
-
-        const courses = [
-            {
-                title: "Lesson 1: Basic Greetings 👋",
-                description: "Learn how to say hello, goodbye, and thank you.",
-                vocabulary: [
-                    { word: "Ciao", translation: "Hello / Goodbye" },
-                    { word: "Grazie", translation: "Thank you" },
-                    { word: "Prego", translation: "You're welcome / Please" },
-                    { word: "Arrivederci", translation: "Goodbye" }
-                ],
-                questions: [
-                    { type: "multiple-choice", text: "How do you say 'Hello' in Italian? 👋", choices: ["Ciao", "Grazie", "Prego", "Arrivederci"], correctAnswer: "Ciao" },
-                    { type: "multiple-choice", text: "What does 'Grazie' mean? 🙏", choices: ["Hello", "Thank you", "Please", "Goodbye"], correctAnswer: "Thank you" },
-                    { type: "translation-input", text: "Translate 'Please' into Italian:", correctAnswer: "Per favore" },
-                    { type: "speaking", text: "Say 'Goodbye' in Italian: 👋", correctAnswer: "Arrivederci" }
-                ]
-            },
-            {
-                title: "Lesson 2: Numbers 1-5 🔢",
-                description: "Learn to count from one to five.",
-                vocabulary: [
-                    { word: "Uno", translation: "One" },
-                    { word: "Due", translation: "Two" },
-                    { word: "Tre", translation: "Three" },
-                    { word: "Quattro", translation: "Four" },
-                    { word: "Cinque", translation: "Five" }
-                ],
-                questions: [
-                    { type: "multiple-choice", text: "What is 'One' in Italian? ☝️", choices: ["Due", "Uno", "Tre", "Quattro"], correctAnswer: "Uno" },
-                    { type: "speaking", text: "Say 'Two' in Italian:✌️", correctAnswer: "Due" },
-                    { type: "translation-input", text: "Translate 'Three' into Italian:", correctAnswer: "Tre" },
-                    { type: "translation-input", text: "Translate 'Four' into Italian:", correctAnswer: "Quattro" },
-                    { type: "multiple-choice", text: "What is 'Cinque'? 🖐️", choices: ["Three", "Four", "Five", "Six"], correctAnswer: "Five" }
-                ]
-            },
-            {
-                title: "Lesson 3: Common Phrases 🗣️",
-                description: "Learn useful everyday phrases.",
-                vocabulary: [
-                    { word: "Sì", translation: "Yes" },
-                    { word: "No", translation: "No" },
-                    { word: "Scusi", translation: "Excuse me / Sorry (formal)" },
-                    { word: "Mi dispiace", translation: "I'm sorry" },
-                    { word: "Per favore", translation: "Please" }
-                ],
-                questions: [
-                    { type: "translation-input", text: "Translate 'Yes' into Italian: ✅", correctAnswer: "Sì" },
-                    { type: "speaking", text: "Say 'No' in Italian:❌", correctAnswer: "No" },
-                    { type: "multiple-choice", text: "How do you say 'Excuse me' (formal)? 🙇", choices: ["Scusi", "Aiuto", "Acqua", "Pane"], correctAnswer: "Scusi" },
-                    { type: "multiple-choice", text: "What does 'Mi dispiace' mean? 😔", choices: ["I'm happy", "I'm sorry", "I'm hungry", "I'm tired"], correctAnswer: "I'm sorry" }
-                ]
-            }
-        ];
-
         let currentLessonIndex = 0;
         let currentQuestionIndex = 0;
         let userProgress = {};
@@ -615,14 +621,6 @@
         const noSpeechSupportMessage = document.getElementById('no-speech-support-message');
         const skipSpeakingBtn = document.getElementById('skip-speaking-btn');
 
-        const FUZZY_MATCH_THRESHOLD = 70;
-
-        const positiveFeedbackMessages = [
-            "Fantastic!", "You got this!", "Excellent!", "Keep up the great work!", "Perfect!"
-        ];
-
-        const correctSynth = new Tone.Synth().toDestination();
-        const incorrectSynth = new Tone.Synth().toDestination();
 
         function playCorrectSound() {
             correctSynth.triggerAttackRelease("C5", "8n");
@@ -698,7 +696,7 @@
         }
 
         function updateProgressBar() {
-            const totalLessons = courses.length;
+            const totalLessons = courses.length; // 'courses' is now defined at the top
             const completedLessons = Object.keys(userProgress).length;
             let progressPercentage = 0;
 
