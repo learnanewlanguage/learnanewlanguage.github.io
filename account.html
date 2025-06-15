@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Global box-sizing for consistent layout behavior */
+        html {
+            box-sizing: border-box;
+        }
+        *, *::before, *::after {
+            box-sizing: inherit;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #eef2f6; /* Lighter blue-grey background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            overflow-x: hidden;
+        }
+        .container-wrapper {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            max-width: 600px; /* Adjusted max-width for account page */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 2rem; /* Consistent padding */
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #4CAF50; /* Duolingo green */
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background-color: #f9fafb;
+            color: #4a5568;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-secondary:hover {
+            background-color: #edf2f7;
+            transform: translateY(-2px);
+        }
+        .btn-github {
+            background-color: #333; /* GitHub black */
+            color: #ffffff;
+        }
+        .btn-github:hover {
+            background-color: #000;
+            transform: translateY(-2px);
+        }
+        input[type="email"],
+        input[type="password"] {
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            width: 100%;
+            font-size: 1.125rem;
+            background-color: #fdfdfe;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        input[type="email"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        .auth-info-box {
+            background-color: #f0f4f8; /* Light blue-grey */
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 1rem;
+        }
+        .auth-controls-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem; /* More space between elements */
+        }
+        .auth-controls-group button {
+            width: 100%; /* Full width buttons for stack */
+        }
+        @media (min-width: 640px) { /* sm breakpoint */
+            .auth-controls-group {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.75rem; /* Tighter spacing for inline buttons */
+            }
+            .auth-controls-group input {
+                flex-grow: 1;
+            }
+            .auth-controls-group button {
+                width: auto; /* Buttons take natural width */
+            }
+        }
+    </style>
+</head>
+<body class="selection:bg-green-200 selection:text-green-800">
+    <div id="app-container" class="container-wrapper">
+        <h1 class="text-3xl font-bold text-gray-800 text-center mb-6">Your Account</h1>
+
+        <!-- Authentication Status Display -->
+        <div id="auth-status-display" class="auth-info-box">
+            <span id="auth-status" class="font-semibold text-gray-800 text-base mb-1">Loading authentication status...</span>
+            <span id="user-id-display" class="text-gray-600 text-xs break-all">Loading User ID...</span>
+            <button id="signout-btn" class="btn btn-secondary mt-4 w-full" onclick="signOutUser()">Sign Out</button>
+        </div>
+
+        <!-- Authentication Forms (Sign Up / Sign In) -->
+        <div id="auth-forms" class="flex flex-col gap-4 mt-6">
+            <h2 class="text-2xl font-semibold text-gray-700 text-center mb-2">Manage Your Account</h2>
+            <div id="auth-error-message" class="hidden text-center text-red-500 font-medium text-sm bg-red-50 p-2 rounded-lg border border-red-200"></div>
+
+            <div class="auth-controls-group">
+                <input type="email" id="email-input" placeholder="Email Address">
+                <input type="password" id="password-input" placeholder="Password">
+                <button id="signup-email-btn" class="btn btn-primary" onclick="signUpWithEmail()">Sign Up</button>
+                <button id="signin-email-btn" class="btn btn-secondary" onclick="signInWithEmail()">Sign In</button>
+                <button id="github-signin-btn" class="btn btn-github flex items-center justify-center space-x-2" onclick="signInWithGithub()">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017 2 16.292 4.84 19.88 8.875 21.042c.408.07.558-.175.558-.385 0-.19-.008-.68-.016-1.336-2.782.603-3.37-1.34-3.37-1.34-.454-1.15-1.11-1.455-1.11-1.455-.908-.62.069-.608.069-.608 1.006.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.089 2.91.833.091-.647.35-1.088.636-1.339-2.22-.253-4.555-1.115-4.555-4.945 0-1.09.39-1.984 1.029-2.682-.103-.253-.446-1.27.098-2.65S11.996 3 12 3c0 .004 0 .008 0 .012a.65.65 0 0 0 0 .14c.008.083.008.166.016.25l.024.28c.08.978.508 2.05 1.48 2.65.6.353 1.258.528 1.916.528.658 0 1.316-.175 1.916-.528 1.492-.882 1.92-2.004 1.92-2.915 0-.092.008-.184.016-.275.008-.092.008-.184.016-.275C21.055 6.484 22 10.984 22 12.017c0 5.533-4.477 9.99-9.998 9.99A9.995 9.995 0 0 1 2 12.017Zm-1.84 5.372c-.14.288-.472.396-.757.256-.285-.14-.396-.472-.256-.757.14-.285.472-.396.757-.256.285.14.396.472.256.757Z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Login with GitHub</span>
+                </button>
+            </div>
+        </div>
+
+        <hr class="border-t border-gray-200 my-6">
+
+        <!-- Return to Lessons Button -->
+        <div class="text-center">
+            <button class="btn btn-secondary text-lg" onclick="window.location.href='learn.html'">← Back to Lessons</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GithubAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase (provided by Canvas environment)
+        // Ensure these are correctly passed in your deployment environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        let app = null;
+        let db = null;
+        let auth = null;
+        let userId = crypto.randomUUID(); // Default to a random ID for unauthenticated state
+
+        // Make functions globally accessible for inline HTML event handlers
+        window.signUpWithEmail = signUpWithEmail;
+        window.signInWithEmail = signInWithEmail;
+        window.signOutUser = signOutUser;
+        window.signInWithGithub = signInWithGithub; // Make GitHub sign-in globally accessible
+
+        const authStatusSpan = document.getElementById('auth-status');
+        const userIdDisplaySpan = document.getElementById('user-id-display');
+        const signoutBtn = document.getElementById('signout-btn');
+        const authErrorMessage = document.getElementById('auth-error-message');
+        const authForms = document.getElementById('auth-forms');
+        const authStatusDisplay = document.getElementById('auth-status-display');
+
+
+        function displayAuthError(message) {
+            if (authErrorMessage) {
+                authErrorMessage.textContent = message;
+                authErrorMessage.classList.remove('hidden');
+                setTimeout(() => {
+                    authErrorMessage.classList.add('hidden');
+                    authErrorMessage.textContent = '';
+                }, 5000);
+            }
+        }
+
+        // Firebase Initialization
+        if (Object.keys(firebaseConfig).length > 0) {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Initial sign-in with custom token if available (for Canvas environment)
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (initialAuthToken) {
+                    signInWithCustomToken(auth, initialAuthToken).catch(error => {
+                        console.error("Custom token sign-in error:", error);
+                        displayAuthError(error.message);
+                        signInAnonymously(auth).catch(anonError => {
+                            console.error("Fallback anonymous sign-in error:", anonError);
+                            displayAuthError(anonError.message);
+                        });
+                    });
+                } else if (!auth.currentUser) {
+                    signInAnonymously(auth).catch((error) => {
+                        console.error("Anonymous sign-in on initial load error:", error);
+                        displayAuthError(error.message);
+                    });
+                }
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        if (authStatusSpan) authStatusSpan.textContent = `Signed in as: ${user.isAnonymous ? 'Anonymous' : user.email || 'User'}`;
+                        if (userIdDisplaySpan) userIdDisplaySpan.textContent = `User ID: ${userId}`;
+
+                        if (user.isAnonymous) {
+                            // If anonymous, show an option to log in/sign up
+                            if (authForms) authForms.classList.remove('hidden');
+                            if (signoutBtn) signoutBtn.classList.add('hidden'); // Hide sign out for anonymous
+                        } else {
+                            // If authenticated, hide forms and show sign out
+                            if (authForms) authForms.classList.add('hidden');
+                            if (signoutBtn) signoutBtn.classList.remove('hidden');
+                        }
+                    } else {
+                        // User is signed out or no user (e.g., after signOut, or first load without custom token)
+                        userId = crypto.randomUUID(); // Set a new random ID for unauthenticated state
+                        if (authStatusSpan) authStatusSpan.textContent = 'Signed out';
+                        if (userIdDisplaySpan) userIdDisplaySpan.textContent = `User ID: Not signed in`;
+                        if (authForms) authForms.classList.remove('hidden');
+                        if (signoutBtn) signoutBtn.classList.add('hidden');
+                    }
+                });
+
+            } catch (initError) {
+                console.error("Firebase initialization failed:", initError);
+                displayAuthError("Firebase setup error. Check console for details.");
+                // Fallback to local-only display if Firebase init fails
+                if (authStatusSpan) authStatusSpan.textContent = 'Firebase not initialized.';
+                if (userIdDisplaySpan) userIdDisplaySpan.textContent = 'User ID: N/A';
+                if (authForms) authForms.classList.remove('hidden'); // Show forms even if they won't work
+                if (signoutBtn) signoutBtn.classList.add('hidden');
+            }
+        } else {
+            console.warn("Firebase config not found. Running in local-only mode. Authentication will not function.");
+            if (authStatusSpan) authStatusSpan.textContent = 'Firebase not configured.';
+            if (userIdDisplaySpan) userIdDisplaySpan.textContent = 'User ID: N/A (Local Only)';
+            if (authForms) authForms.classList.remove('hidden'); // Show forms, but they won't do anything
+            if (signoutBtn) signoutBtn.classList.add('hidden');
+        }
+
+        async function signUpWithEmail() {
+            if (!auth) {
+                displayAuthError("Firebase authentication not initialized.");
+                return;
+            }
+            const email = document.getElementById('email-input').value;
+            const password = document.getElementById('password-input').value;
+            if (!email || !password) {
+                displayAuthError("Please enter both email and password.");
+                return;
+            }
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                displayAuthError("Account created successfully! You are now logged in.");
+            } catch (error) {
+                console.error("Email sign-up error:", error);
+                displayAuthError(error.message);
+            }
+        }
+
+        async function signInWithEmail() {
+            if (!auth) {
+                displayAuthError("Firebase authentication not initialized.");
+                return;
+            }
+            const email = document.getElementById('email-input').value;
+            const password = document.getElementById('password-input').value;
+            if (!email || !password) {
+                displayAuthError("Please enter both email and password.");
+                return;
+            }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                displayAuthError("Logged in successfully!");
+            } catch (error) {
+                console.error("Email sign-in error:", error);
+                displayAuthError(error.message);
+            }
+        }
+
+        async function signInWithGithub() {
+            if (!auth) {
+                displayAuthError("Firebase authentication not initialized.");
+                return;
+            }
+            const provider = new GithubAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+                displayAuthError("Logged in with GitHub successfully!");
+            } catch (error) {
+                console.error("GitHub sign-in error:", error);
+                // Handle specific errors for GitHub login
+                if (error.code === 'auth/popup-closed-by-user') {
+                    displayAuthError("Sign-in popup closed. Please try again.");
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                    displayAuthError("Sign-in already in progress or popup blocked. Please try again.");
+                } else {
+                    displayAuthError(error.message);
+                }
+            }
+        }
+
+        async function signOutUser() {
+            if (!auth) {
+                displayAuthError("Firebase authentication not initialized.");
+                return;
+            }
+            try {
+                await signOut(auth);
+                displayAuthError("You have been signed out.");
+            } catch (error) {
+                console.error("Sign out error:", error);
+                displayAuthError(error.message);
+            }
+        }
+    </script>
+</body>
+</html>
